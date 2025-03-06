@@ -6,31 +6,32 @@ from TTS.tts.datasets import load_tts_samples
 from TTS.tts.models.glow_tts import GlowTTS
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
 from TTS.utils.audio import AudioProcessor
-from TTS.tts.configs.shared_configs import CharactersConfig
+from TTS.tts.configs.shared_configs import CharactersConfig, BaseAudioConfig
 
 # Set the output path to the current directory
 output_path = os.path.dirname(os.path.abspath(__file__))
 
 # Define the dataset configuration
 dataset_config = BaseDatasetConfig(
-    formatter="ljspeech",  # Overridden by custom formatter
     meta_file_train="metadata.csv",
     path=os.path.join(output_path, "data/")
 )
 
 # Define a custom formatter for the Mongolian dataset
 def mongolian_formatter(root_path, meta_file, **kwargs):
-    """Custom formatter for a two-column metadata file: audio_file|transcription"""
     items = []
     meta_file_path = os.path.join(root_path, meta_file)
     speaker_name = "mongolian_speaker"
-    with open(meta_file_path, 'r', encoding='utf-8') as f:
+    with open(meta_file_path, "r", encoding="utf-8") as f:
         for line in f:
-            cols = line.strip().split('|')
+            cols = line.strip().split("|")
             if len(cols) != 2:
                 raise ValueError(f"Expected 2 columns, got {len(cols)} in line: {line}")
-            audio_file = os.path.join(root_path, cols[0])  # e.g., data/audio_segments/segment_1.wav
-            text = cols[1]  # Transcription in Mongolian
+            audio_file = os.path.join(root_path, cols[0])  # Full path to audio
+            text = cols[1].strip()  # Clean text
+            if not os.path.exists(audio_file):
+                print(f"Warning: {audio_file} not found, skipping")
+                continue
             items.append({
                 "audio_file": audio_file,
                 "text": text,
@@ -45,21 +46,20 @@ mongolian_punctuation = " .,!?-;()“”"
 
 # Initialize the training configuration with custom characters
 config = GlowTTSConfig(
-    batch_size=32,
-    eval_batch_size=16,
-    num_loader_workers=4,
-    num_eval_loader_workers=4,
+    batch_size=16,  # Reduced for stability on smaller systems
+    eval_batch_size=8,
+    num_loader_workers=2,
+    num_eval_loader_workers=2,
     run_eval=True,
-    test_delay_epochs=-1,
+    test_delay_epochs=10,  # Start evaluation after 10 epochs
     epochs=1000,
-    text_cleaner="basic_cleaners",
-    use_phonemes=False,
-    phoneme_language="mn",
+    text_cleaner="basic_cleaners",  # Simple cleaner since no phonemes
+    use_phonemes=False,  # Mongolian phoneme support is not standard
     phoneme_cache_path=os.path.join(output_path, "phoneme_cache"),
     print_step=25,
-    print_eval=False,
-    mixed_precision=True,
-    output_path=output_path,
+    print_eval=True,  # Show evaluation progress
+    mixed_precision=True,  # Faster training on GPU
+    output_path=os.path.join(output_path, "output"),
     datasets=[dataset_config],
     characters=CharactersConfig(
         pad="_",
@@ -67,6 +67,14 @@ config = GlowTTSConfig(
         bos="^",
         characters=mongolian_characters,
         punctuations=mongolian_punctuation
+    ),
+    audio=BaseAudioConfig( 
+        sample_rate= 22050,
+        win_length= 1024,
+        hop_length= 256,
+        num_mels= 80,
+        mel_fmin= 0.0,
+        mel_fmax= 8000.0,
     )
 )
 
@@ -84,20 +92,6 @@ train_samples, eval_samples = load_tts_samples(
     eval_split_size=0.1,
 )
 
-# Debug: Print sample information
-print(f"Loaded {len(train_samples)} training samples and {len(eval_samples)} evaluation samples")
-for i, sample in enumerate(train_samples[:5]):  # Check first 5 samples
-    print(f"Sample {i}:")
-    print(f"  Audio File: {sample['audio_file']}")
-    print(f"  Text: {sample['text']}")
-    print(f"  Speaker: {sample['speaker_name']}")
-    print(f"  Exists: {os.path.exists(sample['audio_file'])}")
-    try:
-        audio = ap.load_wav(sample['audio_file'])
-        print(f"  Audio Length: {len(audio)} samples")
-    except Exception as e:
-        print(f"  Error loading audio: {e}")
-
 # Initialize the GlowTTS model
 model = GlowTTS(config, ap, tokenizer, speaker_manager=None)
 
@@ -105,7 +99,7 @@ model = GlowTTS(config, ap, tokenizer, speaker_manager=None)
 trainer = Trainer(
     TrainerArgs(),
     config,
-    output_path,
+    output_path=os.path.join(output_path, "output"),
     model=model,
     train_samples=train_samples,
     eval_samples=eval_samples
