@@ -2,9 +2,9 @@ import os
 import csv
 
 # Paths
-text_file = "data/processed/text.txt"
-audio_folder = "data/processed/audio_segments"
-metadata_file = "data/processed/metadata.csv"
+text_file = "new_dataset/text.txt"
+audio_folder = "new_dataset/wavs"
+metadata_file = "new_dataset/metadata.csv"
 
 # Read sentences from text file (line by line)
 with open(text_file, "r", encoding="utf-8") as f:
@@ -25,7 +25,7 @@ audio_files = audio_files[:min_length]
 with open(metadata_file, "w", encoding="utf-8", newline="") as f:
     writer = csv.writer(f, delimiter="|")
     for text, audio in zip(lines, audio_files):
-        audio_path = f"audio_segments/{audio}"
-        writer.writerow([audio_path, text])
+        segment_name = audio.split(".")[0]  # Extract 'segment_X' from 'segment_X.wav'
+        writer.writerow([segment_name, "unused", text])
 
 print(f"✅ metadata.csv saved at: {metadata_file}")

@@ -1,14 +1,20 @@
+import os
 import re
-from pdfminer.high_level import extract_text
+from PyPDF2 import PdfReader
+
+BASE_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Path to the PDF file
-pdf_path = "data/raw/100jil.pdf"
+pdf_path = os.path.join(BASE_PATH, "new_dataset","raw", "monte.pdf")
 
-# Extract text from pages 2 to 11
-text = extract_text(pdf_path, page_numbers=range(2, 11))
+# Extract text from pages 2 to 11 (0-based index)
+with open(pdf_path, "rb") as file:
+    reader = PdfReader(file)
+    text = "\n".join(reader.pages[i].extract_text() for i in range(3, 28) if reader.pages[i].extract_text())
 
-# Remove extra newlines
+# Remove extra newlines and form a single space-separated text
 text = re.sub(r'[\n\f]+', ' ', text)
+text = re.sub(r'\s+', ' ', text).strip()
 
 # Define pattern for quoted text (curly and straight quotes)
 quoted_pattern = r'“[^”]+”|"[^"]+"'
@@ -35,12 +41,10 @@ for i, sentence in enumerate(sentences):
 # Filter out empty sentences
 sentences = [s for s in sentences if s]
 
-# Limit to first 180 sentences
-sentences = sentences[:180]
-
 # Save to file
-with open("data/processed/text.txt", "w", encoding="utf-8") as f:
-    for i, s in enumerate(sentences):
+output_path = os.path.join(BASE_PATH, "new_dataset", "text1.txt")
+with open(output_path, "w", encoding="utf-8") as f:
+    for s in sentences:
         f.write(f"{s}\n")
 
 print("Processing complete. Sentences saved.")

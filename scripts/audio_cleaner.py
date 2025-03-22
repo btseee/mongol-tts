@@ -42,5 +42,5 @@ def convert_wavs(audio_dir):
 
 if __name__ == "__main__":
     # Replace with your audio directory path
-    audio_directory = "/home/tsee/Tsee/Personal/mongol-tts/dataset/wavs"  # e.g., "/home/user/dataset/100jil"
+    audio_directory = "/home/tsee/Tsee/Personal/mongol-tts/new_dataset"  # e.g., "/home/user/dataset/100jil"
     convert_wavs(audio_directory)

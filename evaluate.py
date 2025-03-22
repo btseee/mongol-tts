@@ -15,4 +15,4 @@ synthesizer = Synthesizer(
 wav = synthesizer.tts("Сайн уу, энэ бол миний TTS загвар.")
 
 # Save the audio file
-synthesizer.save_wav(wav, "output.wav")
+synthesizer.save_wav(wav, "output/output.wav")
