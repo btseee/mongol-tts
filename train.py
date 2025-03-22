@@ -8,34 +8,34 @@ from TTS.TTS.tts.models.vits import Vits, VitsAudioConfig
 from TTS.TTS.tts.datasets import load_tts_samples
 from trainer import Trainer, TrainerArgs
 from utils.get_latest_run import get_latest_model
-from utils.get_batch_size import get_auto_batch_size
+from utils.get_batch_size import get_auto_batch_size, get_auto_num_workers
 
 def setup_logging():
-    """Configure the logging format and level."""
+    """Лог үүсгэх"""
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(message)s'
     )
 
 def main():
-    """Main function to set up and start the training process."""
+    """Үндсэн функц"""
     setup_logging()
 
-    # Define base paths for organization
+    # Тохиргоо
     BASE_PATH = os.path.dirname(os.path.abspath(__file__))
     OUTPUT_PATH = os.path.join(BASE_PATH, "models", "mongol-tts")
     DATASET_PATH = os.path.join(BASE_PATH, "dataset")
     os.makedirs(OUTPUT_PATH, exist_ok=True)
 
-    # Define Mongolian Cyrillic character set and punctuation
+    # Үсгийн жагсаалт
     mongolian_cyrillic = "АБВГДЕЁЖЗИЙКЛМНОӨПРСТУҮФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмноөпрстуүфхцчшщъыьэюя"
     punctuations = "!'(),-.:;? “”\"…"
     characters = mongolian_cyrillic + punctuations
 
-    # Clear GPU cache
+    # Cuda санах ойг цэвэрлэх
     torch.cuda.empty_cache()
 
-    # Configure character set for the model
+    # Үсгийн тохиргоо
     characters_config = CharactersConfig(
         characters_class="TTS.tts.models.vits.VitsCharacters",
         pad="_",
@@ -49,9 +49,9 @@ def main():
         is_sorted=True,
     )
 
-    # Audio configuration matching the dataset
+    # Дууны тохиргоо
     audio_config = VitsAudioConfig(
-        sample_rate=22050,
+        sample_rate=22050, # 22050Hz
         hop_length=256,
         win_length=1024,
         fft_size=1024,
@@ -60,33 +60,41 @@ def main():
         num_mels=80,
     )
 
-    # Vits model configuration
+    # Vits тохиргоо
     config = VitsConfig(
         output_path=OUTPUT_PATH,
         run_name="mongolian_tts_run",
         audio=audio_config,
         characters=characters_config,
-        batch_size=get_auto_batch_size(),
-        eval_batch_size=4,
-        num_loader_workers=4,
-        num_eval_loader_workers=2,
+        batch_size = get_auto_batch_size(is_training=True, max_batch=64),
+        eval_batch_size = get_auto_batch_size(is_training=False, max_batch=128),
+        num_loader_workers = get_auto_num_workers(is_training=True),
+        num_eval_loader_workers = get_auto_num_workers(is_training=False),
         epochs=1000,
-        test_delay_epochs=100,
+        test_delay_epochs=10,
         use_phonemes=False,
         text_cleaner="multilingual_cleaners",
         print_step=50,
         save_step=500,
         log_model_step=100,
         mixed_precision=True,
+        test_sentences=[
+            "Сайн байна уу?",   
+            "Би монгол хүн.",          
+            "Өнөөдөр цаг агаар сайхан байна."
+        ],
     )
 
-    #DATASET CONFIG
+    # Датасет тохиргоо
     dataset_folders = [f for f in os.listdir(DATASET_PATH) if os.path.isdir(os.path.join(DATASET_PATH, f))]
+    if not dataset_folders:
+        logging.error("Датасет алга %s", DATASET_PATH)
+        return
 
     dataset_configs = [
         BaseDatasetConfig(
             formatter="ljspeech",
-            dataset_name=f"mongolian_tts_{folder}",
+            dataset_name="mongolian_tts",
             meta_file_train="metadata.csv",
             meta_file_val="",
             path=os.path.join(DATASET_PATH, folder),
@@ -94,22 +102,26 @@ def main():
         )
         for folder in dataset_folders
     ]
-    
-    
-    # Load training and evaluation samples with an evaluation split
+
+    # Сургалтын багцуудыг дуудах
     train_samples, eval_samples = load_tts_samples(
         dataset_configs,
         eval_split=True,
         eval_split_max_size=256,
-        eval_split_size=0.1,
+        eval_split_size=0.1
     )
 
-    # Initialize the Vits model using the provided configuration
+    # Лог хийх
+    logging.info(f"Loaded {len(train_samples)} training samples and {len(eval_samples)} evaluation samples.")
+
+    # Тохиргоо болон моделийг үүсгэх
     model = Vits.init_from_config(config)
 
-    # Set up the trainer with the given configurations and samples
+    # Trainer үүсгэх
     trainer = Trainer(
-        TrainerArgs(restore_path=get_latest_model(OUTPUT_PATH)),
+        TrainerArgs(
+            restore_path=get_latest_model(OUTPUT_PATH),
+        ),
         config,
         output_path=OUTPUT_PATH,
         model=model,
@@ -117,7 +129,7 @@ def main():
         eval_samples=eval_samples,
     )
 
-    # Start training
+    # Сургалтыг эхлүүлэх
     trainer.fit()
 
 if __name__ == '__main__':
