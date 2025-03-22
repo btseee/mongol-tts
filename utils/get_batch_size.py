@@ -1,70 +1,70 @@
 import torch
 import os
 
-# Function to calculate batch size based on GPU memory
+# GPU санах ойд суурилсан багц хэмжээ тооцоолох функц
 def get_auto_batch_size(is_training=True, min_batch=2, max_batch=64):
     """
-    Automatically determines batch size based on available GPU memory.
+    Багц хэмжээг автомат тооцоолох функц нь ашиглах боломжтой GPU санах ойд суурилна.
     
-    Args:
-        is_training (bool): If True, optimize for training; if False, for evaluation.
-        min_batch (int): Minimum batch size to ensure functionality.
-        max_batch (int): Maximum batch size to prevent memory overflow.
+    Аргументууд:
+        is_training (bool): Хэрэв True бол сургалт хийхэд оптимизаци хийх; хэрэв False бол үнэлгээ хийхэд.
+        min_batch (int): Үйлдэл ажиллагаа хэвийн байхын тулд хамгийн бага багц хэмжээ.
+        max_batch (int): Санах ойд дарамт учруулахгүйгээр хамгийн их багц хэмжээ.
     
-    Returns:
-        int: Calculated batch size.
+    Буцаах:
+        int: Тооцоолсон багц хэмжээ.
     """
     if not torch.cuda.is_available():
-        return min_batch  # Fallback to minimum if no GPU is available
+        return min_batch  # Хэрэв GPU ашиглах боломжгүй бол хамгийн бага хэмжээг авах
 
-    # Get total GPU memory and currently allocated memory
-    gpu_memory = torch.cuda.get_device_properties(0).total_memory  # in bytes
-    available_memory = torch.cuda.memory_allocated(0)  # in bytes
-    free_memory = gpu_memory - available_memory  # in bytes
+    # Нийт GPU санах ой ба одоогийн хувиарлагдсан санах ойн хэмжээ авах
+    gpu_memory = torch.cuda.get_device_properties(0).total_memory  # байт-аар
+    available_memory = torch.cuda.memory_allocated(0)  # байт-аар
+    free_memory = gpu_memory - available_memory  # байт-аар
 
-    # Adjust factor based on training or evaluation
-    # Training needs more memory for gradients, so use a lower factor
-    factor = 0.5 if is_training else 0.8  # Higher factor for eval allows larger batches
+    # Сургалт эсвэл үнэлгээ хийхэд үндэслэн хүчин зүйл тохируулах
+    # Сургалт нь градиентүүдэд илүү санах ой шаарддаг тул бага хүчин зүйлийг ашиглана
+    factor = 0.5 if is_training else 0.8  # Үнэлгээний үед том хэмжээтэй багц ашиглах боломжтой
 
-    # Convert free memory to GB and estimate batch size
+    # Төлбөргүй санах ойг GB болгож хөрвүүлж, багц хэмжээ тооцоолно
     estimated_batch_size = int((free_memory / (1024 ** 3)) * factor)
     
-    # Clamp the batch size between min_batch and max_batch
+    # Багц хэмжээг хамгийн бага ба хамгийн их хооронд хязгаарлана
     return max(min_batch, min(estimated_batch_size, max_batch))
 
-# Function to determine the number of data loader workers based on CPU cores
+# CPU цөмийн тоо дээр үндэслэн өгөгдлийн ачаалал өгөгдлийн удирдагчдын тоог тодорхойлох функц
 def get_auto_num_workers(is_training=True):
     """
-    Automatically sets the number of data loader workers based on CPU cores.
+    CPU цөмийн тоонд суурилсан өгөгдлийн ачаалал удирдагчдын тоог автомат тохируулна.
     
-    Args:
-        is_training (bool): If True, optimize for training; if False, for evaluation.
+    Аргументууд:
+        is_training (bool): Хэрэв True бол сургалт хийхэд оптимизаци хийх; хэрэв False бол үнэлгээ хийхэд.
     
-    Returns:
-        int: Number of workers.
+    Буцаах:
+        int: Ачаалал удирдагчдын тоо.
     """
     cpu_count = os.cpu_count()
     if cpu_count is None:
-        return 4  # Default fallback if CPU count is unavailable
+        return 4  # Хэрэв CPU тоо байхгүй бол 4 гэж тохируулах
 
-    # More workers for training (data-intensive), fewer for evaluation
+    # Сургалтанд илүү олон ажилчид хэрэгтэй (өгөгдөл ихтэй), үнэлгээнд илүү цөөхөн
     return min(8, cpu_count) if is_training else min(4, cpu_count)
 
-# Example usage in a configuration
+# Тохиргоо хийх жишээ
 def setup_config():
     """
-    Sets up a configuration with automatically determined parameters.
+    Автомат тооцоолсон параметрүүдтэй тохиргоог тохируулна.
     
-    Returns:
-        dict: Configuration with batch sizes and worker numbers.
+    Буцаах:
+        dict: Багц хэмжээ болон ажилчдын тоо бүхий тохиргоо.
     """
-    # Calculate parameters
+    # Параметрүүдийг тооцоолно
     batch_size = get_auto_batch_size(is_training=True, max_batch=64)
-    eval_batch_size = get_auto_batch_size(is_training=False, max_batch=128)  # Larger max for eval
+    eval_batch_size = get_auto_batch_size(is_training=False, max_batch=128)  # Үнэлгээнд томруулах
     num_loader_workers = get_auto_num_workers(is_training=True)
     num_eval_loader_workers = get_auto_num_workers(is_training=False)
 
-    # Example configuration dictionary
+    # Тохиргооны жишээ үгсийн сан
     config = {
         "batch_size": batch_size,
         "eval_batch_size": eval_batch_size,
@@ -74,10 +74,10 @@ def setup_config():
     
     return config
 
-# Test the configuration
+# Тохиргоог турших
 if __name__ == "__main__":
     config = setup_config()
-    print("Configuration:")
+    print("Тохиргоо:")
     print(f"  batch_size: {config['batch_size']}")
     print(f"  eval_batch_size: {config['eval_batch_size']}")
     print(f"  num_loader_workers: {config['num_loader_workers']}")

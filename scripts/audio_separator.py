@@ -1,25 +1,42 @@
 import os
 from pydub import AudioSegment
 from pydub.silence import detect_nonsilent
+import argparse
 
-BASE_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# Load audio file
-audio_path = os.path.join(BASE_PATH, "new_dataset", "monte.wav")
+def separate_audio(audio_path, output_folder, silence_threshold=-50, min_silence_len=900):
+    """
+    Аудио файлыг чимээгүй хэсгүүдээр нь тасалж, тусдаа WAV файлууд болгон хадгална.
+    
+    Аргументууд:
+        audio_path (str): Оролтын аудио файлын зам.
+        output_folder (str): Сегментүүдийг хадгалах директорын зам.
+        silence_threshold (int): Чимээгүй байдлын босго (dBFS).
+        min_silence_len (int): Хамгийн бага чимээгүй хугацаа (миллисекунд).
+    """
+    # Аудио файлыг ачаалах
+    audio = AudioSegment.from_file(audio_path, format="wav")
 
-audio = AudioSegment.from_file(audio_path, format="wav")
+    # Чимээгүй хэсгүүдийг илрүүлэх
+    non_silent_chunks = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_threshold)
 
-# Detect non-silent chunks
-silence_threshold = -50  # dBFS
-min_silence_len = 900  # milliseconds
-non_silent_chunks = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_threshold)
+    # Сегментүүдийг хадгалах директор үүсгэх
+    os.makedirs(output_folder, exist_ok=True)
+    print(f"Сегментүүдийг хадгалах газар: {output_folder}")
 
-# Create a folder to save segments
-output_folder = os.path.join(BASE_PATH, "new_dataset", "wavs")
-os.makedirs(output_folder, exist_ok=True)
-print(f"Saving segments to: {output_folder}")
+    # Сегментүүдийг тасалж хадгалах
+    total_segments = len(non_silent_chunks)
+    for i, (start, end) in enumerate(non_silent_chunks):
+        segment = audio[start:end]
+        segment_path = os.path.join(output_folder, f"segment_{i+1}.wav")
+        segment.export(segment_path, format="wav")
+        print(f"Хадгалсан: {segment_path} ({start}ms - {end}ms) - {i+1}/{total_segments}")
 
-# Extract and save segments
-for i, (start, end) in enumerate(non_silent_chunks):
-    segment = audio[start:end]
-    segment.export(os.path.join(output_folder, f"segment_{i+1}.wav"), format="wav")
-    print(f"Saved: {output_folder}/segment_{i}.wav ({start}ms - {end}ms)")
+if __name__ == "__main__":
+    # Командын мөрний аргументыг унших
+    parser = argparse.ArgumentParser(description="Аудио файлыг сегмент болгон хуваах скрипт")
+    parser.add_argument("audio_path", help="Оролтын аудио файлын зам")
+    parser.add_argument("output_folder", help="Сегментүүдийг хадгалах директорын зам")
+    parser.add_argument("--silence_threshold", type=int, default=-50, help="Чимээгүй байдлын босго (dBFS)")
+    parser.add_argument("--min_silence_len", type=int, default=900, help="Хамгийн бага чимээгүй хугацаа (миллисекунд)")
+    args = parser.parse_args()
+    separate_audio(args.audio_path, args.output_folder, args.silence_threshold, args.min_silence_len)

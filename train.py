@@ -112,8 +112,8 @@ def main():
     )
 
     # Лог хийх
-    logging.info(f"Loaded {len(train_samples)} training samples and {len(eval_samples)} evaluation samples.")
-
+    logging.info(f"{len(train_samples)} сургалтын дээж болон {len(eval_samples)} үнэлгээний дээж ачааллаа.")
+    
     # Тохиргоо болон моделийг үүсгэх
     model = Vits.init_from_config(config)
 
