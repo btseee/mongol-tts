@@ -9,6 +9,10 @@ from TTS.TTS.tts.datasets import load_tts_samples
 from trainer import Trainer, TrainerArgs
 from utils.get_latest_run import get_latest_model
 from utils.get_batch_size import get_auto_batch_size, get_auto_num_workers
+from TTS.TTS.tts.utils.text.tokenizer import TTSTokenizer
+from TTS.TTS.utils.audio import AudioProcessor
+from TTS.TTS.tts.utils.languages import LanguageManager
+from TTS.TTS.tts.utils.speakers import SpeakerManager
 
 def setup_logging():
     """Лог үүсгэх"""
@@ -84,6 +88,10 @@ def main():
             "Өнөөдөр цаг агаар сайхан байна."
         ],
     )
+    config.from_dict(config.to_dict())
+
+    # init audio processor
+    ap = AudioProcessor(**config.audio.to_dict())
 
     # Датасет тохиргоо
     dataset_folders = [f for f in os.listdir(DATASET_PATH) if os.path.isdir(os.path.join(DATASET_PATH, f))]
@@ -107,15 +115,24 @@ def main():
     train_samples, eval_samples = load_tts_samples(
         dataset_configs,
         eval_split=True,
-        eval_split_max_size=256,
-        eval_split_size=0.1
+        eval_split_max_size=config.eval_split_max_size,
+        eval_split_size=config.eval_split_size,
     )
+
+    speaker_manager = SpeakerManager()
+    speaker_manager.set_ids_from_data(train_samples + eval_samples, parse_key="speaker_name")
+    config.model_args.num_speakers = speaker_manager.num_speakers
+
+    language_manager = LanguageManager(config=config)
+    config.model_args.num_languages = language_manager.num_languages
 
     # Лог хийх
     logging.info(f"{len(train_samples)} сургалтын дээж болон {len(eval_samples)} үнэлгээний дээж ачааллаа.")
     
+    # Initialize tokenizer
+    tokenizer, config = TTSTokenizer.init_from_config(config)
     # Тохиргоо болон моделийг үүсгэх
-    model = Vits.init_from_config(config)
+    model = Vits(config, ap, tokenizer, speaker_manager, language_manager)
 
     # Trainer үүсгэх
     trainer = Trainer(
