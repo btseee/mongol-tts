@@ -50,6 +50,20 @@ config = GlowTTSConfig(
         "Би монгол хүн.",          
         "Өнөөдөр цаг агаар сайхан байна."
     ],
+    characters=CharactersConfig(
+        characters = "АБВГДЕЁЖЗИЙКЛМНОӨПРСТУҮФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмноөпрстуүфхцчшщъыьэюя",
+        punctuations=" !\"'(),-.:;?[]{}«»“”‘’",
+        blank="",
+        space=" ",
+        bos="[BOS]",
+        eos="[EOS]",
+        pad="[PAD]",
+        is_sorted=False,
+        use_phonemes=False,
+        is_unique=False,
+        phonemes="",
+        vocab_dict=None,
+    ),
 )
 
 ap = AudioProcessor.init_from_config(config)
