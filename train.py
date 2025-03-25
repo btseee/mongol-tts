@@ -53,16 +53,6 @@ config = GlowTTSConfig(
     characters=CharactersConfig(
         characters = "АБВГДЕЁЖЗИЙКЛМНОӨПРСТУҮФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмноөпрстуүфхцчшщъыьэюя",
         punctuations=" !\"'(),-.:;?[]{}«»“”‘’",
-        blank="",
-        space=" ",
-        bos="[BOS]",
-        eos="[EOS]",
-        pad="[PAD]",
-        is_sorted=False,
-        use_phonemes=False,
-        is_unique=False,
-        phonemes="",
-        vocab_dict=None,
     ),
 )
 
