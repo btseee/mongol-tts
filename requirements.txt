@@ -1,4 +1,4 @@
-python<=3.9.21
+runpod
 absl-py==2.2.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.11.14

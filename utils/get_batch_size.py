@@ -23,8 +23,7 @@ def get_auto_batch_size(is_training=True, min_batch=2, max_batch=64):
     free_memory = gpu_memory - available_memory  # байт-аар
 
     # Сургалт эсвэл үнэлгээ хийхэд үндэслэн хүчин зүйл тохируулах
-    # Сургалт нь градиентүүдэд илүү санах ой шаарддаг тул бага хүчин зүйлийг ашиглана
-    factor = 0.5 if is_training else 0.8  # Үнэлгээний үед том хэмжээтэй багц ашиглах боломжтой
+    factor = 0.7 if is_training else 0.85  # Илүү их GPU санах ой ашиглах
 
     # Төлбөргүй санах ойг GB болгож хөрвүүлж, багц хэмжээ тооцоолно
     estimated_batch_size = int((free_memory / (1024 ** 3)) * factor)
@@ -47,8 +46,8 @@ def get_auto_num_workers(is_training=True):
     if cpu_count is None:
         return 4  # Хэрэв CPU тоо байхгүй бол 4 гэж тохируулах
 
-    # Сургалтанд илүү олон ажилчид хэрэгтэй (өгөгдөл ихтэй), үнэлгээнд илүү цөөхөн
-    return min(8, cpu_count) if is_training else min(4, cpu_count)
+    # Илүү их CPU цөмийг ашиглах: сургалтанд 16 хүртэл, үнэлгээнд 8 хүртэл
+    return min(16, cpu_count) if is_training else min(8, cpu_count // 2)
 
 # Тохиргоо хийх жишээ
 def setup_config():
