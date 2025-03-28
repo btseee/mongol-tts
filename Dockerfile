@@ -19,8 +19,8 @@ RUN pip3 install llvmlite --ignore-installed
 # Install dependencies from requirements.txt, ensuring CUDA support for PyTorch
 RUN pip3 install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
 
-# Copy the rest of the mongol-tts directory (including train.py, utils, and dataset)
-COPY mongol-tts /app/mongol-tts
+# Copy the entire repository into the container
+COPY . /app/mongol-tts
 
 # Set the working directory to where the training script resides
 WORKDIR /app/mongol-tts
