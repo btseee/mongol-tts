@@ -1,5 +1,6 @@
 import os
 import logging
+import re
 
 def get_latest_model(output_path):
     """

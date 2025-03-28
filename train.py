@@ -16,7 +16,8 @@ import argparse
 def train(dataset_path: str, output_path: str, restore_path: str, best_path: str):
     dataset_config = BaseDatasetConfig(
         formatter="ljspeech", 
-        meta_file_train="metadata.csv", 
+        meta_file_train="metadata_train.csv", 
+        meta_file_val="metadata_test.csv",
         path=dataset_path,
         language="mn-mn"
     )
