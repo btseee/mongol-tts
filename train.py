@@ -23,12 +23,12 @@ def train(dataset_path: str, output_path: str, restore_path: str, best_path: str
     )
     
     config = Tacotron2Config(
-        batch_size=64,             
-        eval_batch_size=32,     
+        batch_size=32,             
+        eval_batch_size=16,     
         num_loader_workers=8,       
         num_eval_loader_workers=8,  
         run_eval=True,
-        test_delay_epochs=10,  
+        test_delay_epochs=5,  
         epochs=500,
         text_cleaner="basic_cleaners",
         output_path=output_path,
