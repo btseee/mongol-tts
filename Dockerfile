@@ -16,11 +16,8 @@ RUN pip3 install -U pip setuptools
 # Install llvmlite separately to ensure Numba dependencies are handled
 RUN pip3 install llvmlite --ignore-installed
 
-# Copy the requirements.txt file from the mongol-tts directory first for caching
-COPY mongol-tts/requirements.txt /app/mongol-tts/requirements.txt
-
 # Install dependencies from requirements.txt, ensuring CUDA support for PyTorch
-RUN pip3 install -r /app/mongol-tts/requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
+RUN pip3 install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
 
 # Copy the rest of the mongol-tts directory (including train.py, utils, and dataset)
 COPY mongol-tts /app/mongol-tts
