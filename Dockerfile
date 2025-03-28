@@ -24,17 +24,14 @@ RUN pip3 install -U pip setuptools
 # Install llvmlite separately to ensure Numba dependencies are handled
 RUN pip3 install llvmlite --ignore-installed
 
-# Copy requirements.txt into the container (this also helps Docker cache the dependency layer)
-COPY requirements.txt /app/requirements.txt
-
-# Install dependencies from requirements.txt, ensuring CUDA support for PyTorch
-RUN pip3 install -r /app/requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
-
 # Copy the entire repository into the container
 COPY . /app/mongol-tts
 
 # Set the working directory to where the training script resides
 WORKDIR /app/mongol-tts
+
+# Install dependencies from requirements.txt, ensuring CUDA support for PyTorch
+RUN pip3 install -r /app/mongol-tts/requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
 
 # Define the command to run the training script, outputting to /workspace/models/mongol-tts
 CMD ["python", "train.py", "/workspace/models/mongol-tts"]
