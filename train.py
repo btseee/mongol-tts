@@ -3,10 +3,10 @@ import argparse
 import logging
 from trainer import Trainer, TrainerArgs
 
+from TTS.tts.configs.glow_tts_config import GlowTTSConfig
 from TTS.tts.configs.shared_configs import BaseDatasetConfig, CharactersConfig
-from TTS.tts.configs.vits_config import VitsConfig
 from TTS.tts.datasets import load_tts_samples
-from TTS.tts.models.vits import Vits, VitsAudioConfig
+from TTS.tts.models.glow_tts import GlowTTS
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
 from TTS.utils.audio import AudioProcessor
 
@@ -25,26 +25,19 @@ def train(dataset_path: str, output_path: str, restore_path: str, best_path: str
         language="mn-cyrl",     
     )
     
-    audio_config = VitsAudioConfig(
-        sample_rate=22050, 
-    )
-    
-    config = VitsConfig(
-        audio=audio_config,
+    config = GlowTTSConfig(
         run_name="mongol-tts",
         batch_size=32,
         eval_batch_size=16,
-        batch_group_size=5,
-        num_loader_workers=8,
+        num_loader_workers=4,
         num_eval_loader_workers=4,
         run_eval=True,
         test_delay_epochs=-1,
-        epochs=epochs,
+        epochs=1000,
         text_cleaner="multilingual_cleaners",
         use_phonemes=False,
-        compute_input_seq_cache=True,
         print_step=25,
-        print_eval=True,
+        print_eval=False,
         mixed_precision=True,
         output_path=output_path,
         datasets=[dataset_config],
@@ -58,11 +51,10 @@ def train(dataset_path: str, output_path: str, restore_path: str, best_path: str
             "Өнөөдөр цаг агаар сайхан байна."
         ],
     )
-
-    ap = AudioProcessor.init_from_config(config)
     
+    ap = AudioProcessor.init_from_config(config)
     tokenizer, config = TTSTokenizer.init_from_config(config)
-
+    
     train_samples, eval_samples = load_tts_samples(
         dataset_config,
         eval_split=True,
@@ -70,22 +62,19 @@ def train(dataset_path: str, output_path: str, restore_path: str, best_path: str
         eval_split_size=config.eval_split_size,
     )
     
-    logger.info(f"Loaded {len(train_samples)} training samples and {len(eval_samples)} evaluation samples.")
-    
-    model = Vits(config, ap, tokenizer, speaker_manager=None)
+    model = GlowTTS(config, ap, tokenizer, speaker_manager=None)
     
     trainer = Trainer(
-        TrainerArgs(restore_path=restore_path, best_path=best_path),
-        config,
-        output_path,
-        model=model,
-        train_samples=train_samples,
-        eval_samples=eval_samples,
+        TrainerArgs(), 
+        config, 
+        output_path, 
+        model=model, 
+        train_samples=train_samples, 
+        eval_samples=eval_samples
     )
     
-    logger.info("Starting training...")
     trainer.fit()
-    logger.info("Training complete.")
+    
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -103,7 +92,7 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="Output directory for the model",
-        default="models/mongol-tts"
+        default="/workspace"
     )
     parser.add_argument(
         "--epochs",
