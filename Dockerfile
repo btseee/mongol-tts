@@ -1,6 +1,6 @@
 # Use a CUDA-enabled base image for GPU support
 FROM nvidia/cuda:11.8.0-base-ubuntu22.04
-
+ENV DEBIAN_FRONTEND=noninteractive
 # Install OS dependencies required for Python and TTS-related libraries
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
