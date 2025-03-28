@@ -27,11 +27,6 @@ def train(dataset_path: str, output_path: str, restore_path: str, best_path: str
     
     audio_config = VitsAudioConfig(
         sample_rate=22050, 
-        win_length=1024, 
-        hop_length=256, 
-        num_mels=80, 
-        mel_fmin=0, 
-        mel_fmax=None,
     )
     
     config = VitsConfig(
