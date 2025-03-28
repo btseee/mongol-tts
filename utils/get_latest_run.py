@@ -1,5 +1,6 @@
 import os
 import logging
+import re
 
 def get_latest_model(output_path):
     """
@@ -35,6 +36,39 @@ def get_latest_model(output_path):
 
     # Сүүлийн загварын замыг буцаана
     return model_path
+
+def get_latest_checkpoint(output_path):
+    """
+    Find and return the path to the latest checkpoint file in the specified directory.
+
+    Args:
+        output_path (str): Path to the directory containing checkpoint files.
+
+    Returns:
+        str or None: Path to the latest checkpoint file, or None if no valid checkpoint is found.
+    """
+    if not os.path.exists(output_path):
+        return None
+
+    # Regular expression to match checkpoint files with numerical suffixes
+    checkpoint_pattern = re.compile(r"^checkpoint_(\d+)\.pth$")
+
+    latest_checkpoint = None
+    max_number = -1
+
+    # Iterate over files in the directory
+    for filename in os.listdir(output_path):
+        match = checkpoint_pattern.match(filename)
+        if match:
+            number = int(match.group(1))
+            if number > max_number:
+                max_number = number
+                latest_checkpoint = filename
+
+    if latest_checkpoint is None:
+        return None
+
+    return os.path.join(output_path, latest_checkpoint)
 
 def get_latest_path(output_path):
     """
