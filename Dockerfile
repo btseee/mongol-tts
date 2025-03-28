@@ -12,12 +12,6 @@ RUN apt-get update && apt-get upgrade -y && \
         espeak-ng libsndfile1-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Verify git installation
-RUN git --version
-
-# Optionally disable setuptools_scm commit lookup if not needed
-ENV SETUPTOOLS_SCM_DISABLE_VERSION=1
-
 # Upgrade pip and setuptools for compatibility with Python packages
 RUN pip3 install -U pip setuptools
 
@@ -30,6 +24,7 @@ COPY . /app/mongol-tts
 # Set the working directory to where the training script resides
 WORKDIR /app/mongol-tts
 
+RUN git submodule update --init --recursive
 # Install dependencies from requirements.txt, ensuring CUDA support for PyTorch
 RUN pip3 install -r /app/mongol-tts/requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
 
