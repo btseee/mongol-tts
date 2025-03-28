@@ -1,7 +1,7 @@
 import os
 
 from trainer import Trainer, TrainerArgs
-
+import torch
 from TTS.tts.configs.tacotron2_config import Tacotron2Config
 from TTS.tts.configs.shared_configs import BaseDatasetConfig, CharactersConfig
 from TTS.tts.datasets import load_tts_samples
@@ -13,6 +13,7 @@ from utils.get_latest_run import get_latest_checkpoint, get_latest_model
 import argparse
 
 def train(dataset_path: str, output_path: str, restore_path: str, best_path: str):
+    torch.set_num_threads(16)
     dataset_config = BaseDatasetConfig(
         formatter="ljspeech", 
         meta_file_train="metadata_train.csv", 
@@ -22,10 +23,10 @@ def train(dataset_path: str, output_path: str, restore_path: str, best_path: str
     )
     
     config = Tacotron2Config(
-        batch_size=64,
+        batch_size=128,
         eval_batch_size=32,
-        num_loader_workers=4,
-        num_eval_loader_workers=4,
+        num_loader_workers=16,
+        num_eval_loader_workers=16,
         run_eval=True,
         test_delay_epochs=5,
         epochs=1000,
@@ -53,13 +54,13 @@ def train(dataset_path: str, output_path: str, restore_path: str, best_path: str
         eval_split_max_size=config.eval_split_max_size,
         eval_split_size=config.eval_split_size,
     )
-    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = Tacotron2(
         config, 
         ap, 
         tokenizer, 
         speaker_manager=None
-    )
+    ).to(device=device)
     
     trainer = Trainer(
         TrainerArgs(
