@@ -26,3 +26,11 @@ The Mongolian text-to-speech uses 5 hours audio from the [Mongolian Bible](https
 3. Train the SSRN model: `python train-ssrn.py --dataset=mbspeech`
 4. Synthesize sentences: `python synthesize.py --dataset=mbspeech`
    * The WAV files are saved in the `samples` folder.
+
+## Training/Synthesizing Mongolian Text-To-Speech
+The Mongolian text-to-speech uses dataset from the [Common voices by Mozilla](https://commonvoice.mozilla.org/en/datasets).
+1. Download the dataset: `python dl_and_preprop_dataset.py --dataset=commonvoice`
+2. Train the Text2Mel model: `python train-text2mel.py --dataset=commonvoice`
+3. Train the SSRN model: `python train-ssrn.py --dataset=commonvoice`
+4. Synthesize sentences: `python synthesize.py --dataset=commonvoice`
+   * The WAV files are saved in the `samples` folder.

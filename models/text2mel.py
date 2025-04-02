@@ -1,29 +1,29 @@
 """
+Text2Mel Network implementation based on:
 Hideyuki Tachibana, Katsuya Uenoyama, Shunsuke Aihara
-Efficiently Trainable Text-to-Speech System Based on Deep Convolutional Networks with Guided Attention
+'Efficiently Trainable Text-to-Speech System Based on Deep Convolutional Networks with Guided Attention'
 https://arxiv.org/abs/1710.08969
 
-Text2Mel Network.
+Author: Erdene-Ochir Tuguldur
 """
-__author__ = 'Erdene-Ochir Tuguldur'
-__all__ = ['Text2Mel']
 
+import math
 import numpy as np
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from hparams import HParams as hp
+from models.hparams import HParams as hp
 from .layers import E, C, HighwayBlock, GatedConvBlock, ResidualBlock
 
 
-def Conv(in_channels, out_channels, kernel_size, dilation, causal=False, nonlinearity='linear'):
+def Conv(in_channels: int, out_channels: int, kernel_size: int, dilation: int,
+         causal: bool = False, nonlinearity: str = 'linear') -> nn.Module:
     return C(in_channels, out_channels, kernel_size, dilation, causal=causal,
              weight_init=hp.text2mel_weight_init, normalization=hp.text2mel_normalization, nonlinearity=nonlinearity)
 
 
-def BasicBlock(d, k, delta, causal=False):
+def BasicBlock(d: int, k: int, delta: int, causal: bool = False) -> nn.Module:
     if hp.text2mel_basic_block == 'gated_conv':
         return GatedConvBlock(d, k, delta, causal=causal,
                               weight_init=hp.text2mel_weight_init, normalization=hp.text2mel_normalization)
@@ -36,151 +36,158 @@ def BasicBlock(d, k, delta, causal=False):
                              widening_factor=2)
 
 
-def CausalConv(in_channels, out_channels, kernel_size, dilation, nonlinearity='linear'):
+def CausalConv(in_channels: int, out_channels: int, kernel_size: int, dilation: int,
+               nonlinearity: str = 'linear') -> nn.Module:
     return Conv(in_channels, out_channels, kernel_size, dilation, causal=True, nonlinearity=nonlinearity)
 
 
-def CausalBasicBlock(d, k, delta):
+def CausalBasicBlock(d: int, k: int, delta: int) -> nn.Module:
     return BasicBlock(d, k, delta, causal=True)
 
 
 class TextEnc(nn.Module):
-
-    def __init__(self, vocab, e=hp.e, d=hp.d):
-        """Text encoder network.
-        Args:
-            vocab: vocabulary
-            e: embedding dim
-            d: Text2Mel dim
-        Input:
-            L: (B, N) text inputs
-        Outputs:
-            K: (B, d, N) keys
-            V: (N, d, N) values
+    def __init__(self, vocab: str, e: int = hp.e, d: int = hp.d):
         """
-        super(TextEnc, self).__init__()
+        Text encoder network.
+        
+        :param vocab: Vocabulary string.
+        :param e: Embedding dimension.
+        :param d: Text2Mel hidden dimension.
+        Input:
+            L: (B, N) text inputs.
+        Outputs:
+            K: (B, d, N) keys.
+            V: (B, d, N) values.
+        """
+        super().__init__()
         self.d = d
         self.embedding = E(len(vocab), e)
-
         self.layers = nn.Sequential(
             Conv(e, 2 * d, 1, 1, nonlinearity='relu'),
             Conv(2 * d, 2 * d, 1, 1),
 
-            BasicBlock(2 * d, 3, 1), BasicBlock(2 * d, 3, 3), BasicBlock(2 * d, 3, 9), BasicBlock(2 * d, 3, 27),
-            BasicBlock(2 * d, 3, 1), BasicBlock(2 * d, 3, 3), BasicBlock(2 * d, 3, 9), BasicBlock(2 * d, 3, 27),
+            BasicBlock(2 * d, 3, 1), BasicBlock(2 * d, 3, 3),
+            BasicBlock(2 * d, 3, 9), BasicBlock(2 * d, 3, 27),
+            BasicBlock(2 * d, 3, 1), BasicBlock(2 * d, 3, 3),
+            BasicBlock(2 * d, 3, 9), BasicBlock(2 * d, 3, 27),
 
             BasicBlock(2 * d, 3, 1), BasicBlock(2 * d, 3, 1),
 
             BasicBlock(2 * d, 1, 1), BasicBlock(2 * d, 1, 1)
         )
 
-    def forward(self, x):
-        out = self.embedding(x)
-        out = out.permute(0, 2, 1)  # change to (B, e, N)
-        out = self.layers(out)  # (B, 2*d, N)
-        K = out[:, :self.d, :]  # (B, d, N)
-        V = out[:, self.d:, :]  # (B, d, N)
+    def forward(self, x: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+        out = self.embedding(x)            # (B, N, e)
+        out = out.permute(0, 2, 1)           # (B, e, N)
+        out = self.layers(out)               # (B, 2*d, N)
+        K, V = out[:, :self.d, :], out[:, self.d:, :]
         return K, V
 
 
 class AudioEnc(nn.Module):
-    def __init__(self, d=hp.d, f=hp.n_mels):
-        """Audio encoder network.
-        Args:
-            d: Text2Mel dim
-            f: Number of mel bins
-        Input:
-            S: (B, f, T) melspectrograms
-        Output:
-            Q: (B, d, T) queries
+    def __init__(self, d: int = hp.d, f: int = hp.n_mels):
         """
-        super(AudioEnc, self).__init__()
+        Audio encoder network.
+        
+        :param d: Text2Mel hidden dimension.
+        :param f: Number of mel bins.
+        Input:
+            S: (B, f, T) melspectrograms.
+        Output:
+            Q: (B, d, T) queries.
+        """
+        super().__init__()
         self.layers = nn.Sequential(
             CausalConv(f, d, 1, 1, nonlinearity='relu'),
             CausalConv(d, d, 1, 1, nonlinearity='relu'),
             CausalConv(d, d, 1, 1),
 
-            CausalBasicBlock(d, 3, 1), CausalBasicBlock(d, 3, 3), CausalBasicBlock(d, 3, 9), CausalBasicBlock(d, 3, 27),
-            CausalBasicBlock(d, 3, 1), CausalBasicBlock(d, 3, 3), CausalBasicBlock(d, 3, 9), CausalBasicBlock(d, 3, 27),
+            CausalBasicBlock(d, 3, 1), CausalBasicBlock(d, 3, 3),
+            CausalBasicBlock(d, 3, 9), CausalBasicBlock(d, 3, 27),
+            CausalBasicBlock(d, 3, 1), CausalBasicBlock(d, 3, 3),
+            CausalBasicBlock(d, 3, 9), CausalBasicBlock(d, 3, 27),
 
             CausalBasicBlock(d, 3, 3), CausalBasicBlock(d, 3, 3),
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)
 
 
 class AudioDec(nn.Module):
-    def __init__(self, d=hp.d, f=hp.n_mels):
-        """Audio decoder network.
-        Args:
-            d: Text2Mel dim
-            f: Number of mel bins
-        Input:
-            R_prime: (B, 2d, T) [V*Attention, Q] paper says: "we found it beneficial in our pilot study."
-        Output:
-            Y: (B, f, T)
+    def __init__(self, d: int = hp.d, f: int = hp.n_mels):
         """
-        super(AudioDec, self).__init__()
+        Audio decoder network.
+        
+        :param d: Text2Mel hidden dimension.
+        :param f: Number of mel bins.
+        Input:
+            R_prime: (B, 2d, T) concatenation of attended V and Q.
+        Output:
+            Y: (B, f, T) melspectrogram prediction.
+        """
+        super().__init__()
         self.layers = nn.Sequential(
             CausalConv(2 * d, d, 1, 1),
-
-            CausalBasicBlock(d, 3, 1), CausalBasicBlock(d, 3, 3), CausalBasicBlock(d, 3, 9), CausalBasicBlock(d, 3, 27),
-
+            CausalBasicBlock(d, 3, 1), CausalBasicBlock(d, 3, 3),
+            CausalBasicBlock(d, 3, 9), CausalBasicBlock(d, 3, 27),
             CausalBasicBlock(d, 3, 1), CausalBasicBlock(d, 3, 1),
-
-            # CausalConv(d, d, 1, 1, nonlinearity='relu'),
-            # CausalConv(d, d, 1, 1, nonlinearity='relu'),
             CausalBasicBlock(d, 1, 1),
             CausalConv(d, d, 1, 1, nonlinearity='relu'),
-
             CausalConv(d, f, 1, 1)
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)
 
 
 class Text2Mel(nn.Module):
-    def __init__(self, vocab, d=hp.d):
-        """Text to melspectrogram network.
-        Args:
-            vocab: vocabulary
-            d: Text2Mel dim
-        Input:
-            L: (B, N) text inputs
-            S: (B, f, T) melspectrograms
-        Outputs:
-            Y_logit: logit of Y
-            Y: predicted melspectrograms
-            A: (B, N, T) attention matrix
+    def __init__(self, vocab: str, d: int = hp.d):
         """
-        super(Text2Mel, self).__init__()
+        Text2Mel network.
+        
+        :param vocab: Vocabulary string.
+        :param d: Text2Mel hidden dimension.
+        Inputs:
+            L: (B, N) text inputs.
+            S: (B, f, T) melspectrograms.
+        Outputs:
+            Y_logit: Logits for melspectrogram.
+            Y: Predicted melspectrogram (after sigmoid).
+            A: (B, N, T) attention matrix.
+        """
+        super().__init__()
         self.d = d
-        self.text_enc = TextEnc(vocab)
+        self.text_enc = TextEnc(vocab, d=d)
         self.audio_enc = AudioEnc()
         self.audio_dec = AudioDec()
 
-    def forward(self, L, S, monotonic_attention=False):
-        K, V = self.text_enc(L)
-        Q = self.audio_enc(S)
-        A = torch.bmm(K.permute(0, 2, 1), Q) / np.sqrt(self.d)
+    def forward(self, L: torch.Tensor, S: torch.Tensor, monotonic_attention: bool = False) -> (torch.Tensor, torch.Tensor, torch.Tensor):
+        K, V = self.text_enc(L)        # (B, d, N) each
+        Q = self.audio_enc(S)           # (B, d, T)
+        # Compute scaled dot-product attention scores
+        A = torch.bmm(K.transpose(1, 2), Q) / math.sqrt(self.d)  # (B, N, T)
 
         if monotonic_attention:
-            # TODO: vectorize instead of loops
+            # Optionally enforce a roughly monotonic attention alignment.
+            # This is a simple (non-vectorized) implementation; further optimization is recommended.
             B, N, T = A.size()
             for i in range(B):
-                prva = -1  # previous attention
+                prev_index = 0
                 for t in range(T):
-                    _, n = torch.max(A[i, :, t], 0)
-                    if not (-1 <= n - prva <= 3):
-                        A[i, :, t] = -2 ** 20  # some small numbers
-                        A[i, min(N - 1, prva + 1), t] = 1
-                    _, prva = torch.max(A[i, :, t], 0)
+                    # Find best matching text position at time step t
+                    _, current_index = A[i, :, t].max(dim=0)
+                    if abs(current_index.item() - prev_index) > 3:
+                        # Penalize positions far from the previous best index
+                        A[i, :, t] = -1e9
+                        # Force a slight forward shift
+                        forced_index = min(N - 1, prev_index + 1)
+                        A[i, forced_index, t] = 1.0
+                    prev_index = A[i, :, t].argmax().item()
 
-        A = F.softmax(A, dim=1)
-        R = torch.bmm(V, A)
-        R_prime = torch.cat((R, Q), 1)
+        A = F.softmax(A, dim=1)  # Softmax over the text dimension
+        R = torch.bmm(V, A)      # (B, d, T)
+        R_prime = torch.cat((R, Q), dim=1)  # (B, 2*d, T)
         Y_logit = self.audio_dec(R_prime)
-        Y = F.sigmoid(Y_logit)
+        Y = torch.sigmoid(Y_logit)
         return Y_logit, Y, A
