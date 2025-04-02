@@ -39,7 +39,7 @@ jobs:
           python train-text2mel.py --dataset=ljspeech
           python train-ssrn.py --dataset=ljspeech
       - name: Archive Model Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: tts-model
           path: logdir/
