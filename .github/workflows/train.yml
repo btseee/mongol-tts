@@ -1,0 +1,65 @@
+name: Train TTS Model
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+  release:
+    types: [ created ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests
+        run: pytest
+
+  train:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Run Training
+        run: |
+          python train-text2mel.py --dataset=ljspeech
+          python train-ssrn.py --dataset=ljspeech
+      - name: Archive Model Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: tts-model
+          path: logdir/
+
+  release:
+    runs-on: ubuntu-latest
+    needs: train
+    if: github.event_name == 'release'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download model artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: tts-model
+          path: ./model_artifact
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./model_artifact/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
