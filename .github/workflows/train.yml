@@ -36,8 +36,9 @@ jobs:
           pip install -r requirements.txt
       - name: Run Training
         run: |
-          python train-text2mel.py --dataset=ljspeech
-          python train-ssrn.py --dataset=ljspeech
+          python dl_and_preprop_dataset.py --dataset=commonvoice
+          python train-text2mel.py --dataset=commonvoice 
+          python train-ssrn.py --dataset=commonvoice
       - name: Archive Model Artifacts
         uses: actions/upload-artifact@v4
         with:
