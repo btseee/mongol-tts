@@ -7,3 +7,4 @@ logdir/
 samples
 *.npy
 *.tar.bz2
+datasets/cv-corpus-21.0-2025-03-14-mn

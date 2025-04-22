@@ -28,7 +28,7 @@ class D(nn.Module):
                                          dilation=dilation)
 
         if normalization == 'weight':
-            self.deconv = nn.utils.weight_norm(self.deconv)
+            self.deconv = nn.utils.parametrizations.weight_norm(self.deconv)
         elif normalization == 'layer':
             self.layer_norm = LayerNorm(out_channels)
 
@@ -65,7 +65,7 @@ class C(nn.Module):
                               padding=self.padding, dilation=dilation)
 
         if normalization == 'weight':
-            self.conv = nn.utils.weight_norm(self.conv)
+            self.conv = nn.utils.parametrizations.weight_norm(self.conv)
         elif normalization == 'layer':
             self.layer_norm = LayerNorm(out_channels)
 

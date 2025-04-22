@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-"""Train the Text2Mel network. See: https://arxiv.org/abs/1710.08969"""
-__author__ = 'Erdene-Ochir Tuguldur'
-
 import sys
 import time
 import argparse
@@ -10,7 +7,6 @@ from tqdm import *
 import torch
 import torch.nn.functional as F
 
-# project imports
 from models import SSRN
 from hparams import HParams as hp
 from logger import Logger
@@ -18,16 +14,22 @@ from utils import get_last_checkpoint_file_name, load_checkpoint, save_checkpoin
 from datasets.data_loader import SSRNDataLoader
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--dataset", required=True, choices=['ljspeech', 'mbspeech'], help='dataset name')
+parser.add_argument("--dataset", required=True, choices=['ljspeech', 'mbspeech', 'cvspeech'], help='dataset name') # Add cvspeech
 args = parser.parse_args()
 
+# Select dataset class based on argument
 if args.dataset == 'ljspeech':
     from datasets.lj_speech import LJSpeech as SpeechDataset
-else:
+elif args.dataset == 'mbspeech':
     from datasets.mb_speech import MBSpeech as SpeechDataset
+elif args.dataset == 'cvspeech':
+    from datasets.cv_speech import CVSpeech as SpeechDataset # Import cv_speech
+else:
+     raise ValueError(f"Unknown dataset: {args.dataset}")
 
 use_gpu = torch.cuda.is_available()
 print('use_gpu', use_gpu)
+
 if use_gpu:
     torch.backends.cudnn.benchmark = True
 
