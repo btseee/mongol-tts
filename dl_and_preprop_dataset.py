@@ -194,10 +194,7 @@ elif args.dataset == 'mbspeech':
     mb_speech_instance = MBSpeech([])
     preprocess(dataset_path, mb_speech_instance) # Assumes preprocess looks for wavs in dataset_path/wavs
 elif args.dataset == 'cvspeech':
-    # --- Use the specific URL provided by the user ---
-    cv_download_url = "hhttps://storage.googleapis.com/common-voice-prod-prod-datasets/cv-corpus-21.0-2025-03-14/cv-corpus-21.0-2025-03-14-mn.tar.gz?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=gke-prod%40moz-fx-common-voice-prod.iam.gserviceaccount.com%2F20250426%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250426T143645Z&X-Goog-Expires=43200&X-Goog-SignedHeaders=host&X-Goog-Signature=1f5e63839628f895c9355b5d8f68d7a4673f117ea8a227343a4536777c1eda5bdff47e8b707964a017ed51d5cafb945ee8999f22574c65424abe1ce1a73754634eb558641a3308e9b483ac22c10a8f6ede897c0c2315f647baa60c3768e050e3baaadc91ad668bfa802328708c528fe9e32dd364070f545ec929f213ec65e0d6be9fb2c8f77777e9700de486c3b18e5a8d746ba27d1b8110507fcf3cbc62a8e524f682a3b144a7b945dd05093bcb1766c2fa78974d961cc095a54bf67cd79ecaf6414e02ce086e2cf7db25797b6a1efdb7a847028f7f8f01ad2811de488347aa7a8f80254d433d56b723d64fdb5745dd032a20b6f262b93d75a90bac662dd947"
-    # --- --- --- --- --- --- --- --- --- --- --- --- ---
-
+    cv_download_url = "https://storage.googleapis.com/common-voice-prod-prod-datasets/cv-corpus-21.0-2025-03-14/cv-corpus-21.0-2025-03-14-mn.tar.gz?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=gke-prod%40moz-fx-common-voice-prod.iam.gserviceaccount.com%2F20250426%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20250426T145654Z&X-Goog-Expires=43200&X-Goog-SignedHeaders=host&X-Goog-Signature=062439cfc04ca1307a5e3f37a68ad74ae123e7fd33798a83ae2a7c9f9e6f9ff81c53d34ef6c172267eeedeb2985b4462b5ab13a8e39632bb28a2b3c0ca85943b271ccd7f75125801ad75976f44bddd998df3cf6bd78c6eb5295ef20c005c00c6487308659d1c6e0661a85241cc0c15a2306d7133af8650a795482848c6dd4765f59c89e817c32f523221131466db7349103d6baf6f7ff101664441d66204994f29c5e189f3dbaa4daba4a54326936c8a1bacbcd6fa13c7801147d6902839fec60d0df7e614f8e4ca24d00bdcd54af3c78e56680910eccd1560ee17df7b1e1b365dedc09bcf09979e189520a15972f57c86d3d74d054100327b952a76491e1904"
     # Extract expected dataset name and archive name from URL (best guess)
     try:
          url_path = cv_download_url.split('?')[0] # Get part before query params
