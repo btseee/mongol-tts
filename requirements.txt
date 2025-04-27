@@ -1,0 +1,1 @@
+-e git+https://github.com/idiap/coqui-ai-TTS.git#egg=coqui-ai-TTS
