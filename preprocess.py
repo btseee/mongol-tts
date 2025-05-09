@@ -1,155 +1,145 @@
+#!/usr/bin/env python3
 import os
 import csv
 import re
 import argparse
 from tqdm import tqdm
-from pydub import AudioSegment
 import soundfile as sf
+import numpy as np
+import librosa
 from utils.num2words.num2words import num2words
 
-_MONGOLIAN_CYRILLIC_CHARS = 'абвгдеёжзийклмноөпрстуүфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОӨПРСТУҮФХЦЧШЩЪЫЬЭЮЯ'
+# --- CONFIGURABLE CHARSETS & NORMALIZATION MAPS ---
+_MONGOLIAN_CYRILLIC_CHARS = (
+    'абвгдеёжзийклмноөпрстуүфхцчшщъыьэюя'
+    'АБВГДЕЁЖЗИЙКЛМНОӨПРСТУҮФХЦЧШЩЪЫЬЭЮЯ'
+)
 _ACCEPTED_CHARS = _MONGOLIAN_CYRILLIC_CHARS + ' .,!?-:'
-_PUNCTUATION = '.,!?-:'
-
-_REPLACEMENTS = {
+_PUNCT = '.,!?-:'
+_REPL = {
     '–': '-', '—': '-', '‘': "'", '’': "'",
-    '“': '"', '”': '"', '„': '"', '\u00A0': ' ', '\u202F': ' ', '\n': '',
+    '“': '"', '”': '"', '„': '"',
+    '\u00A0': ' ', '\u202F': ' ',
+    '\n': ' '
 }
+_LATIN_TO_MN = {ch: rd for ch, rd in zip(
+    list("abcdefghijklmnopqrstuvwxyz"),
+    ["эй","би","си","ди","и","эф","жи","эйч","ай",
+     "жей","кей","эл","эм","эн","о","пи","кью","ар",
+     "эс","ти","ю","ви","дабл-ю","икс","вай","зед"]
+)}
 
-_LATIN_TO_MN = {
-    'a': 'эй', 'b': 'би', 'c': 'си', 'd': 'ди', 'e': 'и', 'f': 'эф',
-    'g': 'жи', 'h': 'эйч', 'i': 'ай', 'j': 'жей', 'k': 'кей', 'l': 'эл',
-    'm': 'эм', 'n': 'эн', 'o': 'о', 'p': 'пи', 'q': 'кью', 'r': 'ар',
-    's': 'эс', 't': 'ти', 'u': 'ю', 'v': 'ви', 'w': 'дабл-ю', 'x': 'икс',
-    'y': 'вай', 'z': 'зед'
-}
-
-def expand_numbers_and_letters(text):
-    def replace_num(match):
-        num = int(match.group(0))
-        return num2words(num, lang='mn')
-    text = re.sub(r'\d+', replace_num, text)
-    def replace_letter(match):
-        letter = match.group(0).lower()
-        return _LATIN_TO_MN.get(letter, letter)
-    text = re.sub(r'[A-Za-z]', replace_letter, text)
+# --- TEXT NORMALIZATION FUNCTIONS ---
+def expand_numbers_and_letters(text: str) -> str:
+    text = re.sub(r'\d+', lambda m: num2words(int(m.group()), lang='mn'), text)
+    text = re.sub(r'[A-Za-z]', lambda m: _LATIN_TO_MN.get(m.group().lower(), m.group()), text)
     return text
 
-def normalize_text(text):
+def normalize_text(text: str) -> str:
     text = text.lower()
-    for old, new in _REPLACEMENTS.items():
+    for old, new in _REPL.items():
         text = text.replace(old, new)
     text = expand_numbers_and_letters(text)
-    text = ''.join(c for c in text if c in _ACCEPTED_CHARS)
-    text = text.strip().strip(_PUNCTUATION)
+    text = ''.join(ch for ch in text if ch in _ACCEPTED_CHARS)
+    text = text.strip().strip(_PUNCT)
     text = re.sub(r'\s+', ' ', text)
     return text
 
-def resample_audio(input_path, output_path, target_sr=22050):
-    try:
-        audio = AudioSegment.from_file(input_path)
-        audio = audio.set_frame_rate(target_sr)
-        audio.export(output_path, format="wav", parameters=["-ac", "1", "-acodec", "pcm_s16le"])
-        return True
-    except:
-        return False
+# --- AUDIO PROCESSING FUNCTIONS ---
+def load_and_resample(path: str, sr: int) -> np.ndarray:
+    wav, orig_sr = sf.read(path, always_2d=False)
+    if wav.ndim > 1:
+        wav = wav.mean(axis=1)
+    if orig_sr != sr:
+        wav = librosa.resample(y=wav, orig_sr=orig_sr, target_sr=sr)
+    return wav
 
-def prepare_metadata(cv_data_dir, output_dir, metadata_filename="metadata.csv", target_sr=22050, tsv_filename="validated.tsv"):
-    tsv_path = os.path.join(cv_data_dir, tsv_filename)
-    clips_dir = os.path.join(cv_data_dir, "clips")
-    output_metadata_path = os.path.join(output_dir, metadata_filename)
-    output_wavs_dir = os.path.join(output_dir, "wavs")
+def trim_silence(wav: np.ndarray, sr: int,
+                 top_db: float, frame_length: int, hop_length: int) -> np.ndarray:
+    wav_trimmed, _ = librosa.effects.trim(
+        wav,
+        top_db=top_db,
+        frame_length=frame_length,
+        hop_length=hop_length
+    )
+    return wav_trimmed
 
-    os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(output_wavs_dir, exist_ok=True)
+def write_wav(path: str, wav: np.ndarray, sr: int) -> None:
+    wav_int16 = np.clip(wav * 32767.0, -32768, 32767).astype(np.int16)
+    sf.write(path, wav_int16, sr, subtype='PCM_16')
 
-    metadata = []
-    skipped_count = 0
-    resample_errors = 0
+# --- MAIN METADATA PREPARATION ---
+def prepare_metadata(args):
+    tsv_path = os.path.join(args.cv_data_dir, args.tsv_file)
+    clips_dir = os.path.join(args.cv_data_dir, "clips")
+    wavs_out = os.path.join(args.output_dir, "wavs")
+    os.makedirs(wavs_out, exist_ok=True)
 
-    with open(tsv_path, 'r', encoding='utf-8') as f:
-        total_rows = sum(1 for row in open(tsv_path, 'r', encoding='utf-8')) - 1
-
+    meta_lines = []
+    skipped = 0
     with open(tsv_path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f, delimiter='\t')
-        for row in tqdm(reader, total=total_rows, desc="Processing clips"):
-            try:
-                clip_filename = row['path']
-                text = row['sentence']
+        for row in tqdm(reader, desc="Clips"):
+            txt = row.get('sentence', '').strip()
+            if not txt:
+                skipped += 1
+                continue
 
-                if not text:
-                    skipped_count += 1
-                    continue
+            in_path = os.path.join(clips_dir, row['path'])
+            if not os.path.isfile(in_path):
+                skipped += 1
+                continue
 
-                original_clip_path = os.path.join(clips_dir, clip_filename)
-                if not os.path.exists(original_clip_path):
-                    skipped_count += 1
-                    continue
+            norm = normalize_text(txt)
+            if not norm:
+                skipped += 1
+                continue
 
-                normalized_text = normalize_text(text)
-                if not normalized_text:
-                    skipped_count += 1
-                    continue
+            # load, resample, trim
+            wav = load_and_resample(in_path, args.target_sr)
+            if args.trim_silence:
+                wav = trim_silence(
+                    wav,
+                    args.target_sr,
+                    args.trim_threshold_in_db,
+                    args.trim_frame_size,
+                    args.trim_hop_size
+                )
 
-                output_wav_filename = os.path.splitext(clip_filename)[0] + ".wav"
-                processed_clip_path = os.path.join(output_wavs_dir, output_wav_filename)
+            # write out
+            clip_id = os.path.splitext(row['path'])[0]
+            speaker = row.get('client_id', 'spk0')
+            out_path = os.path.join(wavs_out, f"{clip_id}.wav")
+            write_wav(out_path, wav, args.target_sr)
 
-                resampled_successfully = True
-                if target_sr is not None:
-                    try:
-                        info = sf.info(original_clip_path)
-                        if info.samplerate != target_sr:
-                            resampled_successfully = resample_audio(original_clip_path, processed_clip_path, target_sr)
-                        else:
-                            audio = AudioSegment.from_file(original_clip_path)
-                            audio.export(processed_clip_path, format="wav", parameters=["-ac", "1", "-acodec", "pcm_s16le"])
-                    except:
-                        resampled_successfully = False
-                        resample_errors += 1
-                else:
-                    try:
-                        audio = AudioSegment.from_file(original_clip_path)
-                        audio.export(processed_clip_path, format="wav", parameters=["-ac", "1", "-acodec", "pcm_s16le"])
-                    except:
-                        resampled_successfully = False
-                        resample_errors += 1
+            meta_lines.append(f"{clip_id}|{speaker}|{norm}")
 
-                if resampled_successfully:
-                    clip_id = os.path.splitext(clip_filename)[0]
-                    metadata.append(f"{clip_id}|{normalized_text}|{normalized_text}")
-                else:
-                    skipped_count += 1
-                    resample_errors += 1
+    meta_path = os.path.join(args.output_dir, args.metadata_filename)
+    with open(meta_path, 'w', encoding='utf-8') as f:
+        for L in meta_lines:
+            f.write(L + "\n")
 
-            except:
-                skipped_count += 1
+    print(f"Processed: {len(meta_lines)}, skipped: {skipped}")
+    print(f"Metadata: {meta_path}")
+    print(f"WAVs in: {wavs_out}")
 
-    with open(output_metadata_path, 'w', encoding='utf-8') as f:
-        for line in tqdm(metadata, desc="Writing metadata"):
-            f.write(line + '\n')
-
-    print(f"Total processed entries: {len(metadata)}")
-    print(f"Skipped entries: {skipped_count}")
-    if target_sr is not None:
-        print(f"Resampling/Conversion errors: {resample_errors}")
-    print(f"Metadata file saved to: {output_metadata_path}")
-    print(f"Processed audio files saved in: {output_wavs_dir}")
-
+# --- CMDLINE INTERFACE ---
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("cv_data_dir", type=str)
-    parser.add_argument("output_dir", type=str, default="data/common_voice_mn")
-    parser.add_argument("--metadata_filename", type=str, default="metadata.csv")
-    parser.add_argument("--target_sr", type=int, default=22050)
-    parser.add_argument("--tsv_file", type=str, default="validated.tsv")
-
-    args = parser.parse_args()
-    target_sr_value = args.target_sr if args.target_sr > 0 else None
-
-    prepare_metadata(
-        cv_data_dir=args.cv_data_dir,
-        output_dir=args.output_dir,
-        metadata_filename=args.metadata_filename,
-        target_sr=target_sr_value,
-        tsv_filename=args.tsv_file
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
+    p.add_argument("cv_data_dir", help="CommonVoice root dir")
+    p.add_argument("output_dir", help="Output directory")
+    p.add_argument("--tsv_file", default="validated.tsv",
+                   help="CommonVoice TSV file name (e.g. validated.tsv)")
+    p.add_argument("--metadata_filename", default="metadata.csv")
+    p.add_argument("--target_sr", type=int, default=22050,
+                   help="Audio sampling rate")
+    p.add_argument("--trim_silence", action="store_true",
+                   help="Trim leading/trailing silence")
+    p.add_argument("--trim_threshold_in_db", type=float, default=30.0)
+    p.add_argument("--trim_frame_size", type=int, default=2048)
+    p.add_argument("--trim_hop_size", type=int, default=512)
+    args = p.parse_args()
+
+    prepare_metadata(args)
