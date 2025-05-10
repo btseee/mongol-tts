@@ -1,19 +1,16 @@
-
-
 import os
 import math
 
 from trainer import Trainer, TrainerArgs
 
 from TTS.tts.configs.fastspeech2_config import Fastspeech2Config
-
 from TTS.tts.configs.shared_configs import BaseDatasetConfig, BaseAudioConfig, CharactersConfig
-from TTS.tts.configs.fastspeech2_config import Fastspeech2Config
 from TTS.tts.datasets import load_tts_samples
 from TTS.tts.models.forward_tts import ForwardTTS
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
 from TTS.tts.utils.speakers import SpeakerManager
 from TTS.utils.audio import AudioProcessor
+from TTS.tts.datasets.dataset import F0Dataset, EnergyDataset
 
 from utils.formatter import common_voices_mn
 
@@ -23,6 +20,9 @@ torch.cuda.empty_cache()
 base_path = os.path.dirname(os.path.abspath(__file__))
 output_path = os.path.join(base_path, "output")
 dataset_path = os.path.join(base_path, "dataset", "commonvoice")
+phoneme_cache_path = os.path.join(output_path, "phoneme_cache")
+f0_cache_path = os.path.join(output_path, "f0_cache")
+energy_cache_path = os.path.join(output_path, "energy_cache")
 
 os.makedirs(output_path, exist_ok=True)
 os.makedirs(dataset_path, exist_ok=True)
@@ -45,23 +45,20 @@ audio_config = BaseAudioConfig(
 config = Fastspeech2Config(
     run_name="fastspeech2_mn",
     epochs=1000,
-    num_speakers=510,
     audio=audio_config,
-    batch_size=6,
-    eval_batch_size=3,
-    num_loader_workers=4,
-    num_eval_loader_workers=2,
+    num_speakers=510,
+    batch_size=64,
+    eval_batch_size=32,
+    num_loader_workers=12,
+    num_eval_loader_workers=6,
     text_cleaner="basic_cleaners",
-    characters=CharactersConfig(
-        characters="абвгґдеєжзийклмнопрстуфхцчшщьъыьэюя",
-        punctuations="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
-        pad="[PAD]",
-        eos="[EOS]",
-        bos="[BOS]",
+    characters = CharactersConfig(
+        characters="абвгдеёжзийклмноөпрстуүфхцчшщъыьэюя ",
+        punctuations=".,-:;!?()[]{}'\"",
     ),
     output_path=output_path,
     datasets=[dataset_config],
-    mixed_precision=False,
+    mixed_precision=True,
     print_step=50,
     print_eval=False,
     run_eval=True,
@@ -72,8 +69,21 @@ config = Fastspeech2Config(
     min_text_len=0,
     max_text_len=200,
     use_phonemes=False,
-    phoneme_cache_path=os.path.join(output_path, "phoneme_cache"),
-    f0_cache_path=os.path.join(output_path, "f0_cache"),
+    phoneme_cache_path=phoneme_cache_path,
+    f0_cache_path=f0_cache_path,
+    energy_cache_path=energy_cache_path,
+    test_sentences=[
+        "Сайн байна уу?",
+        "Монгол хэл бол гайхамшигтай.",
+        "Өнөөдөр цаг агаар сайхан байна.",
+        "Би ном унших дуртай.",
+        "Таны нэр хэн бэ?",
+        "Бид хамтдаа ажиллах болно.",
+        "Энэ бол миний гэр бүл.",
+        "Та хаанаас ирсэн бэ?",
+        "Би кофе уухыг хүсч байна.",
+        "Амжилт хүсье!"
+    ]
 )
 
 ap = AudioProcessor.init_from_config(config)
@@ -88,19 +98,41 @@ train_samples, eval_samples = load_tts_samples(
     formatter=common_voices_mn,
 )
 
+f0_ds = F0Dataset(
+    samples=train_samples + eval_samples,
+    ap=ap,
+    cache_path=f0_cache_path,
+    precompute_num_workers=4,
+)
+
+energy_ds = EnergyDataset(
+    samples=train_samples + eval_samples,
+    ap=ap,
+    cache_path=energy_cache_path,
+    precompute_num_workers=4,
+)
+
 speaker_manager = SpeakerManager()
 speaker_manager.set_ids_from_data(train_samples + eval_samples, parse_key="speaker_name")
 config.model_args.num_speakers = speaker_manager.num_speakers
 
 model = ForwardTTS(config, ap, tokenizer, speaker_manager=speaker_manager)
+original_forward_encoder = ForwardTTS._forward_encoder
+
+def patched_forward_encoder(self, x, x_mask, g=None):
+    if g is not None:
+        g = g.to(self.emb_g.weight.device)
+    return original_forward_encoder(self, x, x_mask, g)
+
+ForwardTTS._forward_encoder = patched_forward_encoder
 
 trainer = Trainer(
-    TrainerArgs(), 
-    config, 
-    output_path, 
-    model=model, 
-    train_samples=train_samples, 
-    eval_samples=eval_samples
+    TrainerArgs(),
+    config,
+    output_path,
+    model=model,
+    train_samples=train_samples,
+    eval_samples=eval_samples,
 )
 
 trainer.fit()
