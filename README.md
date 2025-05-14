@@ -78,8 +78,6 @@ This single command will:
     --output_dir checkpoints/fastspeech2
     ```
 
-    Adjust the YAML config for model hyperparameters, learning rate, batch size, etc.
-
 3. Train Neural Vocoder (Coqui TTS)
 
     ```sh
@@ -88,8 +86,6 @@ This single command will:
     --data_dir data/processed \
     --output_dir checkpoints/vocoder
     ```
-
-    Customize the vocoder config for architecture (e.g., HiFi-GAN, MelGAN), training steps, and sample rate.
 
 4. Synthesize Speech
 
