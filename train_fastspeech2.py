@@ -36,8 +36,6 @@ audio_config = BaseAudioConfig(
     pitch_fmax=500.0,
 )
 
-model_args = ForwardTTS.args_type(use_pitch=True, use_energy=False, use_aligner=False)
-
 config = Fastspeech2Config(
     project_name="fastspeech2_mn",
     run_description="FastSpeech2 Mongolian",
@@ -66,7 +64,6 @@ config = Fastspeech2Config(
     phoneme_cache_path=None,
     f0_cache_path=None,
     energy_cache_path=None,
-    model_args=model_args,
     max_seq_len=128,
 )
 
@@ -108,7 +105,7 @@ class MyFastSpeech2(ForwardTTS, TrainerModel):
 
 model = MyFastSpeech2(config, ap, tokenizer)
 trainer = Trainer(
-    TrainerArgs(grad_accum_steps=4),
+    TrainerArgs(),
     config,
     output_path,
     model=model,
