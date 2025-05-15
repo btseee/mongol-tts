@@ -17,9 +17,6 @@ torch.cuda.empty_cache()
 base_path = os.path.dirname(os.path.abspath(__file__))
 output_path = os.path.join(base_path, "output")
 dataset_path = os.path.join(base_path, "dataset", "commonvoice")
-phoneme_cache_path = os.path.join(output_path, "phoneme_cache")
-f0_cache_path = os.path.join(output_path, "f0_cache")
-energy_cache_path = os.path.join(output_path, "energy_cache")
 
 os.makedirs(output_path, exist_ok=True)
 os.makedirs(dataset_path, exist_ok=True)
@@ -39,15 +36,17 @@ audio_config = BaseAudioConfig(
     pitch_fmax=500.0,
 )
 
+model_args = ForwardTTS.args_type(use_pitch=True, use_energy=False, use_aligner=False)
+
 config = Fastspeech2Config(
     project_name="fastspeech2_mn",
-    run_description="FastSpeech2 training for Mongolian language",
+    run_description="FastSpeech2 Mongolian",
     run_name="fastspeech2_mn",
     epochs=1000,
     audio=audio_config,
     num_speakers=1,
-    batch_size=64,
-    eval_batch_size=32,
+    batch_size=16,
+    eval_batch_size=8,
     num_loader_workers=4,
     num_eval_loader_workers=2,
     text_cleaner="basic_cleaners",
@@ -64,21 +63,11 @@ config = Fastspeech2Config(
     use_speaker_embedding=False,
     test_delay_epochs=-1,
     use_phonemes=False,
-    phoneme_cache_path=phoneme_cache_path,
-    f0_cache_path=f0_cache_path,
-    energy_cache_path=energy_cache_path,
-    test_sentences=[
-        "Сайн байна уу?",
-        "Монгол хэл бол гайхамшигтай.",
-        "Өнөөдөр цаг агаар сайхан байна.",
-        "Би ном унших дуртай.",
-        "Таны нэр хэн бэ?",
-        "Бид хамтдаа ажиллах болно.",
-        "Энэ бол миний гэр бүл.",
-        "Та хаанаас ирсэн бэ?",
-        "Би кофе уухыг хүсч байна.",
-        "Амжилт хүсье!",
-    ],
+    phoneme_cache_path=None,
+    f0_cache_path=None,
+    energy_cache_path=None,
+    model_args=model_args,
+    max_seq_len=128,
 )
 
 ap = AudioProcessor.init_from_config(config)
@@ -95,23 +84,21 @@ train_samples, eval_samples = load_tts_samples(
 class MyFastSpeech2(ForwardTTS, TrainerModel):
     def __init__(self, config, ap, tokenizer, speaker_manager=None):
         super().__init__(config, ap, tokenizer, speaker_manager)
-        
         for layer in getattr(self.encoder, 'layers', []):
-            orig_forward = layer.forward
-            layer.forward = lambda *args, original_layer_forward=orig_forward: checkpoint(original_layer_forward, *args, use_reentrant=False) 
+            orig = layer.forward
+            layer.forward = lambda *args, orig=orig: checkpoint(orig, *args, use_reentrant=False)
 
     def get_optimizer(self):
         return torch.optim.Adam(self.parameters(), lr=self.config.lr, **self.config.optimizer_params)
 
     def get_scheduler(self, optimizer):
-        # torch.cuda.set_per_process_memory_fraction(0.9)
         return torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
 
     def optimize(self, batch, trainer):
         batch = self.format_batch_on_device(batch)
-        with torch.amp.autocast("cuda", enabled=trainer.use_amp_scaler):
+        with torch.amp.autocast('cuda', enabled=trainer.use_amp_scaler):
             outputs, loss_dict = self.train_step(batch, trainer.criterion)
-            loss = sum(loss for loss in loss_dict.values())
+            loss = sum(loss_dict.values())
         self.scaled_backward(loss, trainer)
         trainer.optimizer.step()
         if trainer.scheduler:
@@ -119,10 +106,9 @@ class MyFastSpeech2(ForwardTTS, TrainerModel):
         trainer.optimizer.zero_grad()
         return outputs, loss_dict
 
-model = MyFastSpeech2(config, ap, tokenizer, speaker_manager=None)
-
+model = MyFastSpeech2(config, ap, tokenizer)
 trainer = Trainer(
-    TrainerArgs(grad_accum_steps=8),
+    TrainerArgs(grad_accum_steps=4),
     config,
     output_path,
     model=model,
