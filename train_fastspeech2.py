@@ -1,5 +1,7 @@
 import os
 import torch
+from torch.utils.checkpoint import checkpoint
+
 from trainer import Trainer, TrainerArgs
 from trainer.model import TrainerModel
 from TTS.tts.configs.fastspeech2_config import Fastspeech2Config
@@ -47,8 +49,8 @@ config = Fastspeech2Config(
     num_speakers=1,
     batch_size=64,
     eval_batch_size=32,
-    num_loader_workers=12,
-    num_eval_loader_workers=6,
+    num_loader_workers=4,
+    num_eval_loader_workers=2,
     text_cleaner="basic_cleaners",
     characters=CharactersConfig(
         characters="абвгдеёжзийклмноөпрстуүфхцчшщъыьэюя ",
@@ -97,13 +99,13 @@ class MyFastSpeech2(ForwardTTS, TrainerModel):
         from torch.utils.checkpoint import checkpoint
         for layer in getattr(self.encoder, 'layers', []):
             orig_forward = layer.forward
-            layer.forward = lambda *args, orig=orig_forward, checkpoint=checkpoint: checkpoint(orig, *args)
+            layer.forward = lambda *args, original_layer_forward=orig_forward: checkpoint(original_layer_forward, *args, use_reentrant=False) 
 
     def get_optimizer(self):
         return torch.optim.Adam(self.parameters(), lr=self.config.lr, **self.config.optimizer_params)
 
     def get_scheduler(self, optimizer):
-        torch.cuda.set_per_process_memory_fraction(0.9)
+        # torch.cuda.set_per_process_memory_fraction(0.9)
         return torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
 
     def optimize(self, batch, trainer):
