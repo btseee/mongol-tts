@@ -93,14 +93,14 @@ train_samples, eval_samples = load_tts_samples(
 )
 
 model = ForwardTTS(config, ap, tokenizer, speaker_manager=None)
-# original_forward_encoder = ForwardTTS._forward_encoder
+original_forward_encoder = ForwardTTS._forward_encoder
 
-# def patched_forward_encoder(self, x, x_mask, g=None):
-#     if g is not None:
-#         g = g.to(self.emb_g.weight.device)
-#     return original_forward_encoder(self, x, x_mask, g)
+def patched_forward_encoder(self, x, x_mask, g=None):
+    if g is not None:
+        g = g.to(self.emb_g.weight.device)
+    return original_forward_encoder(self, x, x_mask, g)
 
-# ForwardTTS._forward_encoder = patched_forward_encoder
+ForwardTTS._forward_encoder = patched_forward_encoder
 
 trainer = Trainer(
     TrainerArgs(),
