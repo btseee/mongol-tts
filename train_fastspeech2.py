@@ -1,14 +1,15 @@
 import os
 import torch
-
+from torch import nn
 from trainer import Trainer, TrainerArgs
+from trainer.model import TrainerModel
 from TTS.tts.configs.fastspeech2_config import Fastspeech2Config
 from TTS.tts.configs.shared_configs import BaseDatasetConfig, BaseAudioConfig, CharactersConfig
 from TTS.tts.datasets import load_tts_samples
+from TTS.tts.models.forward_tts import ForwardTTS
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
 from TTS.utils.audio import AudioProcessor
 from utils.formatter import common_voices_mn
-from src.model import MyFastSpeech2
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 torch.cuda.empty_cache()
@@ -62,7 +63,7 @@ config = Fastspeech2Config(
     run_eval=True,
     use_speaker_embedding=False,
     test_delay_epochs=-1,
-    use_phonemes=False,  
+    use_phonemes=False,
     phoneme_cache_path=phoneme_cache_path,
     f0_cache_path=f0_cache_path,
     energy_cache_path=energy_cache_path,
@@ -78,8 +79,6 @@ config = Fastspeech2Config(
         "Би кофе уухыг хүсч байна.",
         "Амжилт хүсье!",
     ],
-    compute_energy=False,
-    compute_f0=False,
 )
 
 ap = AudioProcessor.init_from_config(config)
@@ -93,12 +92,37 @@ train_samples, eval_samples = load_tts_samples(
     formatter=common_voices_mn,
 )
 
+class MyFastSpeech2(ForwardTTS, TrainerModel):
+    def __init__(self, config, ap, tokenizer, speaker_manager=None):
+        super().__init__(config, ap, tokenizer, speaker_manager)
+        from torch.utils.checkpoint import checkpoint
+        for layer in getattr(self.encoder, 'layers', []):
+            orig_forward = layer.forward
+            layer.forward = lambda *args, orig=orig_forward, checkpoint=checkpoint: checkpoint(orig, *args)
+
+    def get_optimizer(self):
+        return torch.optim.Adam(self.parameters(), lr=self.config.lr, **self.config.optimizer_params)
+
+    def get_scheduler(self, optimizer):
+        torch.cuda.set_per_process_memory_fraction(0.9)
+        return torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+
+    def optimize(self, batch, trainer):
+        batch = self.format_batch_on_device(batch)
+        with torch.amp.autocast("cuda", enabled=trainer.use_amp_scaler):
+            outputs, loss_dict = self.train_step(batch, trainer.criterion)
+            loss = sum(loss for loss in loss_dict.values())
+        self.scaled_backward(loss, trainer)
+        trainer.optimizer.step()
+        if trainer.scheduler:
+            trainer.scheduler.step()
+        trainer.optimizer.zero_grad()
+        return outputs, loss_dict
+
 model = MyFastSpeech2(config, ap, tokenizer, speaker_manager=None)
 
 trainer = Trainer(
-    TrainerArgs(
-        grad_accum_steps=8
-    ),
+    TrainerArgs(gradient_accumulation_steps=8),
     config,
     output_path,
     model=model,
