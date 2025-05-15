@@ -1,20 +1,16 @@
 import os
-import math
 import torch
-from trainer import Trainer, TrainerArgs
 
+from trainer import Trainer, TrainerArgs
 from TTS.tts.configs.fastspeech2_config import Fastspeech2Config
 from TTS.tts.configs.shared_configs import BaseDatasetConfig, BaseAudioConfig, CharactersConfig
 from TTS.tts.datasets import load_tts_samples
-from TTS.tts.models.forward_tts import ForwardTTS
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
 from TTS.utils.audio import AudioProcessor
-from trainer.model import TrainerModel
 from utils.formatter import common_voices_mn
 from src.model import MyFastSpeech2
 
 torch.cuda.empty_cache()
-
 base_path = os.path.dirname(os.path.abspath(__file__))
 output_path = os.path.join(base_path, "output")
 dataset_path = os.path.join(base_path, "dataset", "commonvoice")
