@@ -40,7 +40,9 @@ audio_config = BaseAudioConfig(
 )
 
 config = Fastspeech2Config(
-    run_name="fastspeech2_mn_single",
+    project_name="fastspeech2_mn",
+    run_description="FastSpeech2 training for Mongolian language",
+    run_name="fastspeech2_mn",
     epochs=1000,
     audio=audio_config,
     num_speakers=1,
@@ -57,9 +59,10 @@ config = Fastspeech2Config(
     datasets=[dataset_config],
     mixed_precision=True,
     print_step=50,
+    print_eval=False,
     run_eval=True,
     use_speaker_embedding=False,
-    max_audio_len=math.ceil(audio_config.sample_rate * 20.0),
+    test_delay_epochs=-1,
     use_phonemes=False,  
     phoneme_cache_path=phoneme_cache_path,
     f0_cache_path=f0_cache_path,
@@ -89,7 +92,7 @@ train_samples, eval_samples = load_tts_samples(
     formatter=common_voices_mn,
 )
 
-model = ForwardTTS(config, ap, tokenizer)
+model = ForwardTTS(config, ap, tokenizer, speaker_manager=None)
 
 trainer = Trainer(
     TrainerArgs(),
