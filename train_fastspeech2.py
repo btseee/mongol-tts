@@ -78,6 +78,8 @@ config = Fastspeech2Config(
         "Би кофе уухыг хүсч байна.",
         "Амжилт хүсье!",
     ],
+    compute_energy=False,
+    compute_f0=False,
 )
 
 ap = AudioProcessor.init_from_config(config)
