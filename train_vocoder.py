@@ -11,16 +11,19 @@ base_path = os.path.dirname(os.path.abspath(__file__))
 output_path = os.path.join(base_path, "output", "vocoder")
 dataset_path = os.path.join(base_path, "dataset", "commonvoice")
 
-config_path = os.path.join(base_path, "output", "fastspeech2_mn_single", "config.json")
-checkpoint_path = os.path.join(base_path, "output", "fastspeech2_mn_single", "best_model.pth")
+config_path = os.path.join(base_path, "output", "fastspeech2_mn-May-10-2025_05+02PM-e55c4e2", "config.json")
+checkpoint_path = os.path.join(base_path, "output", "fastspeech2_mn-May-10-2025_05+02PM-e55c4e2", "checkpoint_510000.pth")
 
 use_cuda = torch.cuda.is_available()
 
 config = HifiganConfig(
-    batch_size=32,
-    eval_batch_size=16,
-    num_loader_workers=4,
-    num_eval_loader_workers=4,
+    run_name="hifigan_mn",
+    checkpoint_path=checkpoint_path,
+    config_path=config_path,
+    batch_size=64,
+    eval_batch_size=32,
+    num_loader_workers=12,
+    num_eval_loader_workers=6,
     run_eval=True,
     test_delay_epochs=5,
     epochs=1000,
