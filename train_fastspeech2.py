@@ -1,7 +1,6 @@
 import os
 import torch
 from torch.utils.checkpoint import checkpoint
-
 from trainer import Trainer, TrainerArgs
 from trainer.model import TrainerModel
 from TTS.tts.configs.fastspeech2_config import Fastspeech2Config
@@ -96,7 +95,7 @@ train_samples, eval_samples = load_tts_samples(
 class MyFastSpeech2(ForwardTTS, TrainerModel):
     def __init__(self, config, ap, tokenizer, speaker_manager=None):
         super().__init__(config, ap, tokenizer, speaker_manager)
-        from torch.utils.checkpoint import checkpoint
+        
         for layer in getattr(self.encoder, 'layers', []):
             orig_forward = layer.forward
             layer.forward = lambda *args, original_layer_forward=orig_forward: checkpoint(original_layer_forward, *args, use_reentrant=False) 
