@@ -46,6 +46,7 @@ config = Fastspeech2Config(
     run_name="fastspeech2_mn",
     epochs=1000,
     audio=audio_config,
+    num_speakers=510,
     batch_size=64,
     eval_batch_size=32,
     num_loader_workers=12,
@@ -62,6 +63,11 @@ config = Fastspeech2Config(
     print_eval=False,
     run_eval=True,
     test_delay_epochs=-1,
+    use_speaker_embedding=True,
+    max_audio_len=math.ceil(audio_config.sample_rate * 20.016009),
+    min_audio_len=0,
+    min_text_len=0,
+    max_text_len=200,
     use_phonemes=False,
     phoneme_cache_path=phoneme_cache_path,
     f0_cache_path=f0_cache_path,
@@ -92,7 +98,25 @@ train_samples, eval_samples = load_tts_samples(
     formatter=common_voices_mn,
 )
 
-model = ForwardTTS(config, ap, tokenizer, speaker_manager=None)
+f0_ds = F0Dataset(
+    samples=train_samples + eval_samples,
+    ap=ap,
+    cache_path=f0_cache_path,
+    precompute_num_workers=4,
+)
+
+energy_ds = EnergyDataset(
+    samples=train_samples + eval_samples,
+    ap=ap,
+    cache_path=energy_cache_path,
+    precompute_num_workers=4,
+)
+
+speaker_manager = SpeakerManager()
+speaker_manager.set_ids_from_data(train_samples + eval_samples, parse_key="speaker_name")
+config.model_args.num_speakers = speaker_manager.num_speakers
+
+model = ForwardTTS(config, ap, tokenizer, speaker_manager=speaker_manager)
 original_forward_encoder = ForwardTTS._forward_encoder
 
 def patched_forward_encoder(self, x, x_mask, g=None):
