@@ -1,6 +1,6 @@
 import os
 import math
-
+import torch
 from trainer import Trainer, TrainerArgs
 
 from TTS.tts.configs.fastspeech2_config import Fastspeech2Config
@@ -8,13 +8,10 @@ from TTS.tts.configs.shared_configs import BaseDatasetConfig, BaseAudioConfig, C
 from TTS.tts.datasets import load_tts_samples
 from TTS.tts.models.forward_tts import ForwardTTS
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
-from TTS.tts.utils.speakers import SpeakerManager
 from TTS.utils.audio import AudioProcessor
-from TTS.tts.datasets.dataset import F0Dataset, EnergyDataset
 
 from utils.formatter import common_voices_mn
 
-import torch
 torch.cuda.empty_cache()
 
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +26,7 @@ os.makedirs(dataset_path, exist_ok=True)
 
 dataset_config = BaseDatasetConfig(
     meta_file_train="metadata.csv",
-    path=dataset_path
+    path=dataset_path,
 )
 
 audio_config = BaseAudioConfig(
@@ -43,16 +40,16 @@ audio_config = BaseAudioConfig(
 )
 
 config = Fastspeech2Config(
-    run_name="fastspeech2_mn",
+    run_name="fastspeech2_mn_single",
     epochs=1000,
     audio=audio_config,
-    num_speakers=510,
+    num_speakers=1,
     batch_size=64,
     eval_batch_size=32,
     num_loader_workers=12,
     num_eval_loader_workers=6,
     text_cleaner="basic_cleaners",
-    characters = CharactersConfig(
+    characters=CharactersConfig(
         characters="абвгдеёжзийклмноөпрстуүфхцчшщъыьэюя ",
         punctuations=".,-:;!?()[]{}'\"",
     ),
@@ -60,15 +57,10 @@ config = Fastspeech2Config(
     datasets=[dataset_config],
     mixed_precision=True,
     print_step=50,
-    print_eval=False,
     run_eval=True,
-    test_delay_epochs=-1,
-    use_speaker_embedding=True,
-    max_audio_len=math.ceil(audio_config.sample_rate * 20.016009),
-    min_audio_len=0,
-    min_text_len=0,
-    max_text_len=200,
-    use_phonemes=False,
+    use_speaker_embedding=False,
+    max_audio_len=math.ceil(audio_config.sample_rate * 20.0),
+    use_phonemes=False,  
     phoneme_cache_path=phoneme_cache_path,
     f0_cache_path=f0_cache_path,
     energy_cache_path=energy_cache_path,
@@ -82,12 +74,11 @@ config = Fastspeech2Config(
         "Энэ бол миний гэр бүл.",
         "Та хаанаас ирсэн бэ?",
         "Би кофе уухыг хүсч байна.",
-        "Амжилт хүсье!"
-    ]
+        "Амжилт хүсье!",
+    ],
 )
 
 ap = AudioProcessor.init_from_config(config)
-
 tokenizer, config = TTSTokenizer.init_from_config(config)
 
 train_samples, eval_samples = load_tts_samples(
@@ -98,33 +89,7 @@ train_samples, eval_samples = load_tts_samples(
     formatter=common_voices_mn,
 )
 
-f0_ds = F0Dataset(
-    samples=train_samples + eval_samples,
-    ap=ap,
-    cache_path=f0_cache_path,
-    precompute_num_workers=4,
-)
-
-energy_ds = EnergyDataset(
-    samples=train_samples + eval_samples,
-    ap=ap,
-    cache_path=energy_cache_path,
-    precompute_num_workers=4,
-)
-
-speaker_manager = SpeakerManager()
-speaker_manager.set_ids_from_data(train_samples + eval_samples, parse_key="speaker_name")
-config.model_args.num_speakers = speaker_manager.num_speakers
-
-model = ForwardTTS(config, ap, tokenizer, speaker_manager=speaker_manager)
-original_forward_encoder = ForwardTTS._forward_encoder
-
-def patched_forward_encoder(self, x, x_mask, g=None):
-    if g is not None:
-        g = g.to(self.emb_g.weight.device)
-    return original_forward_encoder(self, x, x_mask, g)
-
-ForwardTTS._forward_encoder = patched_forward_encoder
+model = ForwardTTS(config, ap, tokenizer)
 
 trainer = Trainer(
     TrainerArgs(),

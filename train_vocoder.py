@@ -1,69 +1,52 @@
+import os
 import torch
-from pathlib import Path
-from TTS.config import load_config
-from TTS.tts.datasets import load_tts_samples
-from TTS.tts.utils.speakers import SpeakerManager
+from trainer import Trainer, TrainerArgs
+
+from TTS.vocoder.configs.hifigan_config import HifiganConfig
+from TTS.vocoder.datasets.preprocess import load_wav_data
+from TTS.vocoder.models.gan import GAN
 from TTS.utils.audio import AudioProcessor
-from TTS.bin.extract_tts_spectrograms import setup_loader, extract_spectrograms
-from utils.formatter import common_voices_mn
 
-# === USER SETTINGS (no CLI args) ===
-CONFIG_PATH      = "output/fastspeech2_mn-May-10-2025_05+02PM-e55c4e2/config.json"
-CHECKPOINT_PATH  = "output/fastspeech2_mn-May-10-2025_05+02PM-e55c4e2/best_model.pth"
-DATASET_PATH     = "dataset/commonvoice"
-OUTPUT_PATH      = "output/vocoder_data"
-USE_CUDA         = torch.cuda.is_available()
-EVAL_SPLIT       = True
+base_path = os.path.dirname(os.path.abspath(__file__))
+output_path = os.path.join(base_path, "output", "vocoder")
+dataset_path = os.path.join(base_path, "dataset", "commonvoice")
 
-# 1) Load TTS config
-config = load_config(CONFIG_PATH)
-config.audio.trim_silence = False
-ap = AudioProcessor(**config.audio)
+config_path = os.path.join(base_path, "output", "fastspeech2_mn_single", "config.json")
+checkpoint_path = os.path.join(base_path, "output", "fastspeech2_mn_single", "best_model.pth")
 
-# 2) Load metadata with custom formatter
-train_meta, eval_meta = load_tts_samples(
-    datasets=config.datasets,
-    eval_split=EVAL_SPLIT,
-    eval_split_max_size=config.eval_split_max_size,
-    eval_split_size=config.eval_split_size,
-    formatter=common_voices_mn,
-)
-samples = train_meta + eval_meta
+use_cuda = torch.cuda.is_available()
 
-# 3) Speaker manager
-if config.use_speaker_embedding:
-    speaker_manager = SpeakerManager(data_items=samples)
-else:
-    speaker_manager = None
-
-# 4) DataLoader for mel extraction
-r = 1 if config.model.lower() == "glow_tts" else None
-loader = setup_loader(
-    config=config,
-    ap=ap,
-    r=r,
-    speaker_manager=speaker_manager,
-    samples=samples,
+config = HifiganConfig(
+    batch_size=32,
+    eval_batch_size=16,
+    num_loader_workers=4,
+    num_eval_loader_workers=4,
+    run_eval=True,
+    test_delay_epochs=5,
+    epochs=1000,
+    seq_len=8192,
+    pad_short=2000,
+    use_noise_augment=True,
+    eval_split_size=10,
+    print_step=25,
+    mixed_precision=False,
+    lr_gen=1e-4,
+    lr_disc=1e-4,
+    data_path=os.path.join(dataset_path, "wavs"),
+    output_path=output_path,
 )
 
-# 5) Build and load model
-from TTS.tts.models import setup_model
-model = setup_model(config)
-model.load_checkpoint(config, CHECKPOINT_PATH, eval=True)
-if USE_CUDA:
-    model.cuda()
+audio_proc = AudioProcessor(**config.audio.to_dict())
 
-# 6) Extract spectrograms
-extract_spectrograms(
-    model_name=config.model.lower(),
-    data_loader=loader,
+eval_samples, train_samples = load_wav_data(config.data_path, config.eval_split_size)
+
+model = GAN(config, audio_proc)
+trainer = Trainer(
+    TrainerArgs(),
+    config,
+    output_path,
     model=model,
-    ap=ap,
-    output_path=Path(OUTPUT_PATH),
-    quantize_bits=0,
-    save_audio=False,
-    debug=False,
-    metadata_name="metadata.txt",
+    train_samples=train_samples,
+    eval_samples=eval_samples,
 )
-
-print("Mel extraction complete. Files in:", OUTPUT_PATH)
+trainer.fit()
