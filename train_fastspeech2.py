@@ -9,6 +9,7 @@ from TTS.tts.utils.text.tokenizer import TTSTokenizer
 from TTS.utils.audio import AudioProcessor
 from utils.formatter import common_voices_mn
 from src.model import MyFastSpeech2
+from TTS.tts.models.forward_tts import ForwardTTS
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 torch.cuda.empty_cache()
@@ -93,7 +94,7 @@ train_samples, eval_samples = load_tts_samples(
     formatter=common_voices_mn,
 )
 
-model = MyFastSpeech2(config, ap, tokenizer, speaker_manager=None)
+model = ForwardTTS(config, ap, tokenizer, speaker_manager=None)
 
 trainer = Trainer(
     TrainerArgs(
