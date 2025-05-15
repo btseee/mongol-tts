@@ -9,8 +9,9 @@ from TTS.tts.datasets import load_tts_samples
 from TTS.tts.models.forward_tts import ForwardTTS
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
 from TTS.utils.audio import AudioProcessor
-
+from trainer.model import TrainerModel
 from utils.formatter import common_voices_mn
+from src.model import MyFastSpeech2
 
 torch.cuda.empty_cache()
 
@@ -92,7 +93,7 @@ train_samples, eval_samples = load_tts_samples(
     formatter=common_voices_mn,
 )
 
-model = ForwardTTS(config, ap, tokenizer, speaker_manager=None)
+model = MyFastSpeech2(config, ap, tokenizer, speaker_manager=None)
 
 trainer = Trainer(
     TrainerArgs(),
