@@ -8,6 +8,7 @@ class MyFastSpeech2(ForwardTTS, TrainerModel):
         return torch.optim.Adam(self.parameters(), lr=self.config.lr, **self.config.optimizer_params)
 
     def get_scheduler(self, optimizer):
+        torch.cuda.set_per_process_memory_fraction(0.9)
         return torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
 
     def optimize(self, batch, trainer):

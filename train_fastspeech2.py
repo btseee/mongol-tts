@@ -10,7 +10,9 @@ from TTS.utils.audio import AudioProcessor
 from utils.formatter import common_voices_mn
 from src.model import MyFastSpeech2
 
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
 torch.cuda.empty_cache()
+
 base_path = os.path.dirname(os.path.abspath(__file__))
 output_path = os.path.join(base_path, "output")
 dataset_path = os.path.join(base_path, "dataset", "commonvoice")
@@ -92,7 +94,9 @@ train_samples, eval_samples = load_tts_samples(
 model = MyFastSpeech2(config, ap, tokenizer, speaker_manager=None)
 
 trainer = Trainer(
-    TrainerArgs(),
+    TrainerArgs(
+        grad_accum_steps=8
+    ),
     config,
     output_path,
     model=model,
