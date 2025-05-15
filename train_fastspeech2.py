@@ -1,6 +1,5 @@
 import os
 import torch
-from torch import nn
 from trainer import Trainer, TrainerArgs
 from trainer.model import TrainerModel
 from TTS.tts.configs.fastspeech2_config import Fastspeech2Config
