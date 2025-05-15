@@ -3,7 +3,15 @@ import torch
 from trainer.model import TrainerModel
 from TTS.tts.models.forward_tts import ForwardTTS
 
+
 class MyFastSpeech2(ForwardTTS, TrainerModel):
+    def __init__(self, config, ap, tokenizer, speaker_manager=None):
+        super().__init__(config, ap, tokenizer, speaker_manager)
+        from torch.utils.checkpoint import checkpoint
+        for layer in getattr(self.encoder, 'layers', []):
+            orig_forward = layer.forward
+            layer.forward = lambda *args, orig=orig_forward, checkpoint=checkpoint: checkpoint(orig, *args)
+
     def get_optimizer(self):
         return torch.optim.Adam(self.parameters(), lr=self.config.lr, **self.config.optimizer_params)
 
