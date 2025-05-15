@@ -1,6 +1,6 @@
 import os
 import math
-import torch
+
 from trainer import Trainer, TrainerArgs
 
 from TTS.tts.configs.fastspeech2_config import Fastspeech2Config
@@ -8,10 +8,13 @@ from TTS.tts.configs.shared_configs import BaseDatasetConfig, BaseAudioConfig, C
 from TTS.tts.datasets import load_tts_samples
 from TTS.tts.models.forward_tts import ForwardTTS
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
+from TTS.tts.utils.speakers import SpeakerManager
 from TTS.utils.audio import AudioProcessor
+from TTS.tts.datasets.dataset import F0Dataset, EnergyDataset
 
 from utils.formatter import common_voices_mn
 
+import torch
 torch.cuda.empty_cache()
 
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -26,7 +29,7 @@ os.makedirs(dataset_path, exist_ok=True)
 
 dataset_config = BaseDatasetConfig(
     meta_file_train="metadata.csv",
-    path=dataset_path,
+    path=dataset_path
 )
 
 audio_config = BaseAudioConfig(
@@ -40,17 +43,15 @@ audio_config = BaseAudioConfig(
 )
 
 config = Fastspeech2Config(
-    project_name="fastspeech2_mn",
-    run_description="FastSpeech2 training for Mongolian language",
-    run_name="fastspeech2_mn", 
+    run_name="fastspeech2_mn",
     epochs=1000,
     audio=audio_config,
-    batch_size=32,
-    eval_batch_size=16,
-    num_loader_workers=4,
-    num_eval_loader_workers=2,
+    batch_size=64,
+    eval_batch_size=32,
+    num_loader_workers=12,
+    num_eval_loader_workers=6,
     text_cleaner="basic_cleaners",
-    characters=CharactersConfig(
+    characters = CharactersConfig(
         characters="абвгдеёжзийклмноөпрстуүфхцчшщъыьэюя ",
         punctuations=".,-:;!?()[]{}'\"",
     ),
@@ -58,8 +59,10 @@ config = Fastspeech2Config(
     datasets=[dataset_config],
     mixed_precision=True,
     print_step=50,
+    print_eval=False,
     run_eval=True,
-    use_phonemes=False,  
+    test_delay_epochs=-1,
+    use_phonemes=False,
     phoneme_cache_path=phoneme_cache_path,
     f0_cache_path=f0_cache_path,
     energy_cache_path=energy_cache_path,
@@ -73,13 +76,12 @@ config = Fastspeech2Config(
         "Энэ бол миний гэр бүл.",
         "Та хаанаас ирсэн бэ?",
         "Би кофе уухыг хүсч байна.",
-        "Амжилт хүсье!",
-    ],
-    compute_energy=False,
-    compute_f0=False
+        "Амжилт хүсье!"
+    ]
 )
 
 ap = AudioProcessor.init_from_config(config)
+
 tokenizer, config = TTSTokenizer.init_from_config(config)
 
 train_samples, eval_samples = load_tts_samples(
@@ -90,7 +92,15 @@ train_samples, eval_samples = load_tts_samples(
     formatter=common_voices_mn,
 )
 
-model = ForwardTTS(config, ap, tokenizer)
+model = ForwardTTS(config, ap, tokenizer, speaker_manager=None)
+# original_forward_encoder = ForwardTTS._forward_encoder
+
+# def patched_forward_encoder(self, x, x_mask, g=None):
+#     if g is not None:
+#         g = g.to(self.emb_g.weight.device)
+#     return original_forward_encoder(self, x, x_mask, g)
+
+# ForwardTTS._forward_encoder = patched_forward_encoder
 
 trainer = Trainer(
     TrainerArgs(),
