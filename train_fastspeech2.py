@@ -122,7 +122,7 @@ class MyFastSpeech2(ForwardTTS, TrainerModel):
 model = MyFastSpeech2(config, ap, tokenizer, speaker_manager=None)
 
 trainer = Trainer(
-    TrainerArgs(gradient_accumulation_steps=8),
+    TrainerArgs(grad_accum_steps=8),
     config,
     output_path,
     model=model,
