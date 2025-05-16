@@ -18,23 +18,19 @@ use_cuda = torch.cuda.is_available()
 
 config = HifiganConfig(
     run_name="hifigan_mn",
-    checkpoint_path=checkpoint_path,
-    config_path=config_path,
-    batch_size=64,
-    eval_batch_size=32,
-    num_loader_workers=12,
-    num_eval_loader_workers=6,
+    batch_size=16,
+    eval_batch_size=8,
+    num_loader_workers=8,
+    num_eval_loader_workers=4,
     run_eval=True,
     test_delay_epochs=5,
-    epochs=1000,
+    epochs=25,
     seq_len=8192,
     pad_short=2000,
     use_noise_augment=True,
-    eval_split_size=10,
-    print_step=25,
     mixed_precision=False,
-    lr_gen=1e-4,
-    lr_disc=1e-4,
+    lr_gen=2e-4,
+    lr_disc=2e-4,
     data_path=os.path.join(dataset_path, "wavs"),
     output_path=output_path,
 )
@@ -44,6 +40,7 @@ audio_proc = AudioProcessor(**config.audio.to_dict())
 eval_samples, train_samples = load_wav_data(config.data_path, config.eval_split_size)
 
 model = GAN(config, audio_proc)
+
 trainer = Trainer(
     TrainerArgs(),
     config,
@@ -52,4 +49,5 @@ trainer = Trainer(
     train_samples=train_samples,
     eval_samples=eval_samples,
 )
+
 trainer.fit()
