@@ -46,7 +46,6 @@ config = Fastspeech2Config(
     run_name="fastspeech2_mn",
     project_name="fastspeech2_mn",
     epochs=20,
-   
     batch_size=32,
     eval_batch_size=16,
     num_loader_workers=8,
@@ -65,7 +64,6 @@ config = Fastspeech2Config(
     print_eval=False,
     run_eval=True,
     test_delay_epochs=-1,
-    use_speaker_embedding=True,
     max_audio_len=math.ceil(audio_config.sample_rate * 21),
     min_audio_len=0,
     min_text_len=0,
@@ -85,9 +83,7 @@ config = Fastspeech2Config(
         "Би кофе уухыг хүсч байна.",
         "Амжилт хүсье!"
     ],
-    learning_rate=1e-3,
-    warmup_steps=10000,
-    total_steps=200000
+    lr=1e-3,
 )
 
 ap = AudioProcessor.init_from_config(config)
@@ -116,19 +112,7 @@ energy_ds = EnergyDataset(
     precompute_num_workers=4,
 )
 
-speaker_manager = SpeakerManager()
-speaker_manager.set_ids_from_data(train_samples + eval_samples, parse_key="speaker_name")
-config.model_args.num_speakers = speaker_manager.num_speakers
-
-model = ForwardTTS(config, ap, tokenizer, speaker_manager=speaker_manager)
-original_forward_encoder = ForwardTTS._forward_encoder
-
-def patched_forward_encoder(self, x, x_mask, g=None):
-    if g is not None:
-        g = g.to(self.emb_g.weight.device)
-    return original_forward_encoder(self, x, x_mask, g)
-
-ForwardTTS._forward_encoder = patched_forward_encoder
+model = ForwardTTS(config, ap, tokenizer, speaker_manager=None)
 
 trainer = Trainer(
     TrainerArgs(),
