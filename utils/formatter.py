@@ -16,22 +16,16 @@ def common_voices_mn(root_path, meta_file, **kwargs):
             if len(cols) < 3:
                 logging.warning(f"Skipping malformed line: {line}")
                 continue
-
+ 
             text = cols[2]
-            speaker_hash = cols[1]
-
-            if speaker_hash not in speaker_hash_to_label_map:
-                speaker_hash_to_label_map[speaker_hash] = f"CV_Speaker_{next_speaker_id_counter:04d}"
-                next_speaker_id_counter += 1
-            
-            readable_speaker_name = speaker_hash_to_label_map[speaker_hash]
+            speaker= cols[1]
 
             wav_file = os.path.join(root_path, "wavs", cols[0] + ".wav")
             
             items.append({
                 "text": text,
                 "audio_file": wav_file,
-                "speaker_name": readable_speaker_name,
+                "speaker_name": speaker,
                 "root_path": root_path
             })
     return items

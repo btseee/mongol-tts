@@ -1,5 +1,4 @@
 import os
-import torch
 from trainer import Trainer, TrainerArgs
 
 from TTS.vocoder.configs.hifigan_config import HifiganConfig
@@ -8,29 +7,26 @@ from TTS.vocoder.models.gan import GAN
 from TTS.utils.audio import AudioProcessor
 
 base_path = os.path.dirname(os.path.abspath(__file__))
-output_path = os.path.join(base_path, "output", "vocoder")
+output_path = os.path.join(base_path, "output")
 dataset_path = os.path.join(base_path, "dataset", "commonvoice")
-
-config_path = os.path.join(base_path, "output", "fastspeech2_mn-May-10-2025_05+02PM-e55c4e2", "config.json")
-checkpoint_path = os.path.join(base_path, "output", "fastspeech2_mn-May-10-2025_05+02PM-e55c4e2", "checkpoint_510000.pth")
-
-use_cuda = torch.cuda.is_available()
 
 config = HifiganConfig(
     run_name="hifigan_mn",
-    batch_size=16,
-    eval_batch_size=8,
+    batch_size=32,
+    eval_batch_size=16,
     num_loader_workers=8,
     num_eval_loader_workers=4,
+    mixed_precision=True,
     run_eval=True,
     test_delay_epochs=5,
-    epochs=25,
+    epochs=100,
     seq_len=8192,
     pad_short=2000,
     use_noise_augment=True,
-    mixed_precision=False,
-    lr_gen=2e-4,
-    lr_disc=2e-4,
+    lr_gen=1e-4,
+    lr_disc=1e-4,
+    wd=1e-6,
+    use_cache=True,
     data_path=os.path.join(dataset_path, "wavs"),
     output_path=output_path,
 )
