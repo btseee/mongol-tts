@@ -36,7 +36,6 @@ config = HifiganConfig(
     test_delay_epochs=5,
     print_step=50,
     print_eval=False,
-    sample_rate=22050,
     seq_len=8192,
     pad_short=2000,
     use_noise_augment=True,
