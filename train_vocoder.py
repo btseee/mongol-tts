@@ -17,7 +17,7 @@ from src.dataset import prepare_dataset
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_PATH , "dataset", "wavs")
-OUTPUT_PATH = os.path.join(BASE_PATH, "output", "hifigan_run")
+OUTPUT_PATH = os.path.join(BASE_PATH, "output")
 DATASET_PATH = os.path.join(BASE_PATH , "dataset")
 
 os.makedirs(OUTPUT_PATH, exist_ok=True)
@@ -31,6 +31,7 @@ config = HifiganConfig(
     eval_batch_size=voc_batch//2,
     num_loader_workers=4,
     num_eval_loader_workers=2,
+    mixed_precision=True,
     epochs=1000,
     run_eval=True,
     test_delay_epochs=5,
