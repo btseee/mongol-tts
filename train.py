@@ -75,7 +75,8 @@ config = Fastspeech2Config(
     datasets=[dataset_config],
     output_path=OUTPUT_PATH,
     f0_cache_path=os.path.join(OUTPUT_PATH, "f0_cache"),
-    energy_cache_path=os.path.join(OUTPUT_PATH, "energy_cache"),   
+    energy_cache_path=os.path.join(OUTPUT_PATH, "energy_cache"),  
+    audio=audio_config, 
 )
 
 ap = AudioProcessor.init_from_config(config)
