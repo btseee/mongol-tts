@@ -76,7 +76,14 @@ config = Fastspeech2Config(
     output_path=OUTPUT_PATH,
     f0_cache_path=os.path.join(OUTPUT_PATH, "f0_cache"),
     energy_cache_path=os.path.join(OUTPUT_PATH, "energy_cache"),  
-    audio=audio_config, 
+    audio=audio_config,
+    test_sentences=[
+        "Сайн байна уу?",
+        "Та хэрхэн байна?",
+        "Би сайн байна.",
+        "Та юу хийж байна вэ?",
+        "Бид хамтдаа суралцаж байна.",
+    ]
 )
 
 ap = AudioProcessor.init_from_config(config)
