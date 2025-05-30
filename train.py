@@ -22,7 +22,8 @@ else:
     batch_size = 8
     eval_batch_size = 4
     learning_rate = 5e-4
-logging.INFO("Using device: %s", device)
+    
+logging.info("Using device: %s", device)
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 DATASET_PATH = os.path.join(BASE_PATH , "dataset")
@@ -30,8 +31,6 @@ OUTPUT_PATH = os.path.join(BASE_PATH, "output")
 
 os.makedirs(DATASET_PATH, exist_ok=True)
 os.makedirs(OUTPUT_PATH, exist_ok=True)
-
-prepare_dataset(DATASET_PATH)
 
 dataset_config = BaseDatasetConfig(
     formatter="ljspeech", 
@@ -43,6 +42,8 @@ dataset_config = BaseDatasetConfig(
 
 audio_config = BaseAudioConfig(
     sample_rate=22050,
+    pitch_fmax= 1100,
+    pitch_fmin= 50
 )
 
 characters_config = CharactersConfig(
@@ -71,6 +72,8 @@ config = Fastspeech2Config(
     num_eval_loader_workers=2,
     datasets=[dataset_config],
     output_path=OUTPUT_PATH,
+    f0_cache_path=os.path.join(OUTPUT_PATH, "f0_cache"),
+    energy_cache_path=os.path.join(OUTPUT_PATH, "energy_cache"),   
 )
 
 ap = AudioProcessor.init_from_config(config)
@@ -83,7 +86,7 @@ train_samples, eval_samples = load_tts_samples(
     eval_split_size=config.eval_split_size
 )
 
-speaker_manager = SpeakerManager(speaker_id_file_path="speakers.json", use_cuda=(device.type=="cuda"))
+speaker_manager = SpeakerManager(use_cuda=(device.type=="cuda"))
 
 model = ForwardTTS(
     config=config, 

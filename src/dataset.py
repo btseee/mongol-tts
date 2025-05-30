@@ -52,8 +52,8 @@ def process_split(split_name, dataset, out_dir, wavs_dir, trim=True):
             uid = f"{split_name}_{i:05d}"
             wav_path = os.path.join(wavs_dir, f"{uid}.wav")
             sf.write(wav_path, audio, TARGET_SR, subtype='PCM_16')
-
-            writer.writerow([uid, text])
+            speaker = "common-voice"
+            writer.writerow([uid,speaker,text])
 
 
 def prepare_dataset(data_set_path):
