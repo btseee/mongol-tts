@@ -32,6 +32,8 @@ OUTPUT_PATH = os.path.join(BASE_PATH, "output")
 os.makedirs(DATASET_PATH, exist_ok=True)
 os.makedirs(OUTPUT_PATH, exist_ok=True)
 
+prepare_dataset(DATASET_PATH)
+
 dataset_config = BaseDatasetConfig(
     formatter="ljspeech", 
     meta_file_train="train.csv",
