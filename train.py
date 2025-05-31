@@ -12,6 +12,7 @@ from TTS.tts.utils.speakers import SpeakerManager
 from TTS.tts.models.forward_tts import ForwardTTS
 
 from src.dataset import prepare_dataset
+from src.utils.formatter import common_voice
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if device.type == "cuda":
@@ -35,7 +36,6 @@ os.makedirs(OUTPUT_PATH, exist_ok=True)
 prepare_dataset(DATASET_PATH)
 
 dataset_config = BaseDatasetConfig(
-    formatter="ljspeech", 
     meta_file_train="train.csv",
     meta_file_val="test.csv",
     path=DATASET_PATH,
@@ -56,6 +56,7 @@ characters_config = CharactersConfig(
 config = Fastspeech2Config(
     run_name="fastspeech2_mn_run",
     project_name="fastspeech2_mn",
+    num_speakers=3,
     run_eval=True,
     test_delay_epochs=-1,
     epochs=1000,
@@ -83,7 +84,8 @@ config = Fastspeech2Config(
         "Би сайн байна.",
         "Та юу хийж байна вэ?",
         "Бид хамтдаа суралцаж байна.",
-    ]
+    ],
+    use_speaker_embedding=True,
 )
 
 ap = AudioProcessor.init_from_config(config)
@@ -93,10 +95,12 @@ train_samples, eval_samples = load_tts_samples(
     dataset_config,
     eval_split=True, 
     eval_split_max_size=config.eval_split_max_size,
-    eval_split_size=config.eval_split_size
+    eval_split_size=config.eval_split_size,
+    formatter=common_voice,
 )
 
-speaker_manager = SpeakerManager(use_cuda=(device.type=="cuda"))
+speaker_manager = SpeakerManager(use_cuda=(device.type=="cuda"), )
+speaker_manager.set_ids_from_data(train_samples + eval_samples, parse_key="speaker_name")
 
 model = ForwardTTS(
     config=config, 

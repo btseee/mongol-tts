@@ -52,7 +52,7 @@ def process_split(split_name, dataset, out_dir, wavs_dir, trim=True):
             uid = f"{split_name}_{i:05d}"
             wav_path = os.path.join(wavs_dir, f"{uid}.wav")
             sf.write(wav_path, audio, TARGET_SR, subtype='PCM_16')
-            speaker = "common-voice"
+            speaker = item["gender"] if item.get("gender") else "unknown"
             writer.writerow([uid,speaker,text])
 
 
