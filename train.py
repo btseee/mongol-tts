@@ -215,7 +215,7 @@ logging.info(f"Loaded {len(train_samples)} training samples and {len(eval_sample
 # --- 5. INITIALIZE SPEAKER MANAGER (for multi-speaker models) ---
 if config.num_speakers > 1 and config.use_speaker_embedding:
     logging.info("Initializing Speaker Manager...")
-    speaker_manager = SpeakerManager(speaker_id_file=None, use_cuda=(device.type == "cuda"))
+    speaker_manager = SpeakerManager(use_cuda=(device.type == "cuda"), speaker_id_file_path=None)
     # Infer speaker IDs from the data
     # Ensure 'speaker_name' in your `common_voice` formatter's output matches this key.
     speaker_manager.set_ids_from_data(train_samples + eval_samples, parse_key="speaker_name")
