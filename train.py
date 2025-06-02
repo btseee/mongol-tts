@@ -244,8 +244,7 @@ trainer = Trainer(
     output_path=OUTPUT_PATH,
     model=model,
     train_samples=train_samples,
-    eval_samples=eval_samples,
-    device=device, # Pass the device to the trainer
+    eval_samples=eval_samples
 )
 
 # --- 8. START TRAINING ---
