@@ -23,7 +23,7 @@ except ImportError:
     logging.warning("Could not import from src. Ensure your project structure and PYTHONPATH are correct.")
     logging.warning("Attempting to import assuming files are in the same directory or accessible.")
     from dataset import prepare_dataset, ACCEPTED_CHARS
-    from formatter import common_voice
+    from src.utils.formatter import common_voice
 
 
 # Configure logging for the training script
@@ -76,7 +76,7 @@ dataset_config = BaseDatasetConfig(
 
 # Audio Configuration (Matches TARGET_SR from dataset.py)
 audio_config = BaseAudioConfig(
-    sample_rate=TARGET_SR, # from dataset.py
+    sample_rate=22050, # from dataset.py
     resample=False, # Resampling is done in dataset.py
     pitch_fmax=600.0, # Adjusted, can be tuned
     pitch_fmin=70.0,  # Adjusted, can be tuned
