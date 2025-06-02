@@ -82,7 +82,7 @@ def process_split(split_name, dataset, out_dir, wavs_dir, trim=True):
                 
                 # Determine speaker: use 'gender' if available, otherwise 'unknown'
                 speaker = item.get("gender")
-                if speaker not in ["male", "female"]: # Normalize speaker tags
+                if speaker not in ["male_masculine", "female_feminine"]: # Normalize speaker tags
                     speaker = "unknown"
                     
                 writer.writerow([wav_filename, speaker, text]) # Store filename instead of full uid for easier parsing
