@@ -112,7 +112,6 @@ characters_config = CharactersConfig(
     bos="<BOS>",
     blank="<BLNK>",
     phonemes=None, # Not using phonemes
-    graphemes=None, # Using characters directly
 )
 
 # Full Training Configuration for FastSpeech2
