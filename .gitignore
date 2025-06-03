@@ -189,7 +189,6 @@ cython_debug/
 
 # Cursor cache
 dataset/
-output/f0_cache/
-output/energy_cache/
+output/cache/
 output/fastspeech2_mn_run/
 output/hifigan_mn_run/

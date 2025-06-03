@@ -8,7 +8,7 @@ TTS_CHECKPOINT = "output/fastspeech2_mn_run/best_model.pth"
 VOCODER_CONFIG = "output/hifigan_mn_run/config.json"
 VOCODER_CHECKPOINT = "output/hifigan_mn_run/best_model.pth"
 TEXT = "Сайн байна уу? Энэ бол туршилтын үг юм."
-SPEAKER_ID = 0
+SPEAKER_ID = "male_masculine"  # Use speaker name or ID as defined in your dataset 
 OUTPUT_PATH = "output/test.wav"
 USE_CUDA = True
 
@@ -17,8 +17,6 @@ device = "cuda" if USE_CUDA and torch.cuda.is_available() else "cpu"
 synth = Synthesizer(
     tts_checkpoint=TTS_CHECKPOINT,
     tts_config_path=TTS_CONFIG,
-    vocoder_checkpoint=VOCODER_CHECKPOINT,
-    vocoder_config=VOCODER_CONFIG,
     use_cuda=(device == "cuda"),
 )
 
