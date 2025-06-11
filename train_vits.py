@@ -10,7 +10,7 @@ from TTS.tts.models.vits import Vits, VitsAudioConfig
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
 from TTS.utils.audio import AudioProcessor
 
-from formatter import mbspeech
+from formatter import formatter as mbspeech
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 DATASET_PATH = os.path.join(BASE_PATH, "dataset")
@@ -23,7 +23,6 @@ dataset_config = BaseDatasetConfig(
     meta_file_train="metadata.csv",
     path=DATASET_PATH,
     language="mn",
-    formatter=mbspeech,
 )
 
 audio_config = VitsAudioConfig(
