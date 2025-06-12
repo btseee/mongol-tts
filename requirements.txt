@@ -14,7 +14,7 @@ charset-normalizer==3.4.2
 click==8.2.1
 contourpy==1.3.2
 coqpit-config==0.2.0
--e git+https://github.com/idiap/coqui-ai-TTS.git@a365e80ed3b4d055e2cf60c86b5a99a86daac769#egg=coqui_tts
+-e git+https://github.com/idiap/coqui-ai-TTS.git@d59aca3df4cc03bedd638478ce1e07d7d7474440#egg=coqui_tts
 coqui-tts-trainer==0.2.3
 cycler==0.12.1
 Cython==3.1.1
