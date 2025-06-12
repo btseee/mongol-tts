@@ -4,19 +4,25 @@ import torch
 from trainer import Trainer, TrainerArgs
 
 from TTS.tts.configs.vits_config import VitsConfig
-from TTS.tts.configs.shared_configs import BaseDatasetConfig, CharactersConfig
+from TTS.tts.configs.shared_configs import BaseDatasetConfig
 from TTS.tts.datasets import load_tts_samples
 from TTS.tts.models.vits import Vits, VitsAudioConfig
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
 from TTS.utils.audio import AudioProcessor
+from TTS.tts.utils.speakers import SpeakerManager
 
+# Assuming your custom formatter is in a file named formatter.py
 from formatter import formatter as mbspeech
 
+# --- PATHS ---
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 DATASET_PATH = os.path.join(BASE_PATH, "dataset")
 OUTPUT_PATH = os.path.join(BASE_PATH, "output")
 
+# Create output directory if it doesn't exist
 os.makedirs(OUTPUT_PATH, exist_ok=True)
+
+# --- CONFIGURATIONS ---
 
 dataset_config = BaseDatasetConfig(
     dataset_name="mbspeech_mn",
@@ -25,6 +31,7 @@ dataset_config = BaseDatasetConfig(
     language="mn",
 )
 
+# Use the standard 22050Hz sample rate for best model performance.
 audio_config = VitsAudioConfig(
     sample_rate=22050,
     hop_length=256,
@@ -34,15 +41,27 @@ audio_config = VitsAudioConfig(
     mel_fmax=None
 )
 
+# ===================================================================
+# FIX 1: Automatically generate the CharactersConfig from the dataset
+# This scans your metadata.csv to find all unique characters,
+# preventing the "out-of-bounds" CUDA error.
+# ===================================================================
+all_samples, _ = load_tts_samples(dataset_config, eval_split=False, formatter=mbspeech)
+characters = TTSTokenizer.get_characters_from_data(all_samples)
+print(" > All characters found in dataset:", "".join(characters.characters))
+print(" > All punctuations found in dataset:", "".join(characters.punctuations))
+
+
 config = VitsConfig(
     audio=audio_config,
     datasets=[dataset_config],
     output_path=OUTPUT_PATH,
-    run_name="vits_mn_run_optimized",
+    run_name="vits_mn_run_fixed",
     project_name="vits_mn",
     
-    batch_size=64,
-    eval_batch_size=32,
+    # Using a slightly more conservative batch size to start, can be increased later.
+    batch_size=48,
+    eval_batch_size=24,
     
     num_loader_workers=16,
     num_eval_loader_workers=8,
@@ -59,18 +78,19 @@ config = VitsConfig(
     lr_disc=0.0002,
     lr_scheduler_gen="ExponentialLR",
     lr_scheduler_disc="ExponentialLR",
+    
+    # FIX 2: Use a more robust text cleaner.
     use_phonemes=False,
-    text_cleaner="basic_cleaners",
+    text_cleaner="multilingual_cleaners",
     
     use_speaker_embedding=False,
     
     compute_f0=True,
     compute_energy=True,
     
-    characters=CharactersConfig(
-        characters="абвгдеёжзийклмноөпрстуүфхцчшщъыьэюя",
-        punctuations=".,-:;!?()[]{}'\" ",
-    ),
+    # Pass the auto-generated characters config to the model
+    characters=characters,
+    
     test_sentences=[
         "Сайн байна уу?",
         "Та хэрхэн байна?",
@@ -80,18 +100,29 @@ config = VitsConfig(
     ],
 )
 
+# --- INITIALIZATION ---
+
 ap = AudioProcessor.init_from_config(config)
 tokenizer, config = TTSTokenizer.init_from_config(config)
 
 train_samples, eval_samples = load_tts_samples(
-    datasets=dataset_config,
+    datasets_config=dataset_config,
     eval_split=True,
     eval_split_max_size=config.eval_split_max_size,
     eval_split_size=config.eval_split_size,
     formatter=mbspeech,
 )
 
-model = Vits(config, ap, tokenizer, speaker_manager=None)
+# ===================================================================
+# FIX 3: Reinstate SpeakerManager for robust speaker handling.
+# This correctly sets config.num_speakers from your data.
+# ===================================================================
+speaker_manager = SpeakerManager()
+speaker_manager.set_ids_from_data(train_samples + eval_samples, parse_key="speaker_name")
+config.num_speakers = speaker_manager.num_speakers
+
+
+model = Vits(config, ap, tokenizer, speaker_manager)
 
 trainer = Trainer(
     args=TrainerArgs(),
@@ -102,4 +133,6 @@ trainer = Trainer(
     eval_samples=eval_samples,
 )
 
+# --- TRAINING ---
 trainer.fit()
+
