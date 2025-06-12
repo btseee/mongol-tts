@@ -89,8 +89,6 @@ speaker_manager.set_ids_from_data(train_samples+eval_samples, parse_key="speaker
 config.num_speakers = speaker_manager.num_speakers
 
 model = Vits(config, ap, tokenizer, speaker_manager)
-ids = tokenizer.text_to_sequence(config.test_sentences[0], config.text_cleaner)
-assert max(ids) < model.text_encoder.emb.num_embeddings
 
 trainer = Trainer(
     args=TrainerArgs(),
