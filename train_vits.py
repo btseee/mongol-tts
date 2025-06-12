@@ -26,25 +26,27 @@ dataset_config = BaseDatasetConfig(
 )
 
 audio_config = VitsAudioConfig(
-    sample_rate=16000,
-    fft_size= 512,
-    hop_length= 160,
-    win_length= 400,
-    num_mels= 80,
-    mel_fmin= 0,
-    mel_fmax= 8000    
+    sample_rate=22050,
+    hop_length=256,
+    win_length=1024,
+    num_mels=80,
+    mel_fmin=0.0,
+    mel_fmax=None
 )
 
 config = VitsConfig(
     audio=audio_config,
     datasets=[dataset_config],
     output_path=OUTPUT_PATH,
-    run_name="vits_mn_run",
+    run_name="vits_mn_run_optimized",
     project_name="vits_mn",
-    batch_size=48,
-    eval_batch_size=24,
-    num_loader_workers=12,
-    num_eval_loader_workers=6,
+    
+    batch_size=64,
+    eval_batch_size=32,
+    
+    num_loader_workers=16,
+    num_eval_loader_workers=8,
+    
     mixed_precision=True,
     epochs=2000,
     run_eval=True,
@@ -57,11 +59,17 @@ config = VitsConfig(
     lr_disc=0.0002,
     lr_scheduler_gen="ExponentialLR",
     lr_scheduler_disc="ExponentialLR",
-    num_speakers=1,
-    use_speaker_embedding=False,
     use_phonemes=False,
-    text_cleaner="multilingual_cleaners",
-    characters= CharactersConfig(
+    text_cleaner="basic_cleaners",
+    
+    use_speaker_embedding=False,
+    
+    compute_f0=True,
+    compute_energy=True,
+    f0_cache_path=os.path.join(OUTPUT_PATH, "f0_cache"),
+    energy_cache_path=os.path.join(OUTPUT_PATH, "energy_cache"),
+    
+    characters=CharactersConfig(
         characters="абвгдеёжзийклмноөпрстуүфхцчшщъыьэюя",
         punctuations=".,-:;!?()[]{}'\" ",
     ),
@@ -78,7 +86,7 @@ ap = AudioProcessor.init_from_config(config)
 tokenizer, config = TTSTokenizer.init_from_config(config)
 
 train_samples, eval_samples = load_tts_samples(
-    dataset_config,
+    datasets_config=dataset_config,
     eval_split=True,
     eval_split_max_size=config.eval_split_max_size,
     eval_split_size=config.eval_split_size,
@@ -88,8 +96,8 @@ train_samples, eval_samples = load_tts_samples(
 model = Vits(config, ap, tokenizer, speaker_manager=None)
 
 trainer = Trainer(
-    TrainerArgs(),
-    config,
+    args=TrainerArgs(),
+    config=config,
     output_path=OUTPUT_PATH,
     model=model,
     train_samples=train_samples,
