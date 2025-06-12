@@ -1,4 +1,5 @@
 import os
+import math
 import torch
 
 from trainer import Trainer, TrainerArgs
@@ -18,12 +19,9 @@ from formatter import formatter as mbspeech
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 DATASET_PATH = os.path.join(BASE_PATH, "dataset")
 OUTPUT_PATH = os.path.join(BASE_PATH, "output")
-
-# Create output directory if it doesn't exist
 os.makedirs(OUTPUT_PATH, exist_ok=True)
 
-# --- CONFIGURATIONS ---
-
+# --- DATASET CONFIG ---
 dataset_config = BaseDatasetConfig(
     dataset_name="mbspeech_mn",
     meta_file_train="metadata.csv",
@@ -31,30 +29,28 @@ dataset_config = BaseDatasetConfig(
     language="mn",
 )
 
-# Use the standard 22050Hz sample rate for best model performance.
+# --- AUDIO CONFIG ---
 audio_config = VitsAudioConfig(
     sample_rate=22050,
     hop_length=256,
     win_length=1024,
     num_mels=80,
     mel_fmin=0.0,
-    mel_fmax=None
+    mel_fmax=None,
 )
 
+# --- MODEL CONFIG ---
 config = VitsConfig(
     audio=audio_config,
     datasets=[dataset_config],
     output_path=OUTPUT_PATH,
     run_name="vits_mn_run_fixed",
     project_name="vits_mn",
-    
-    # Using a slightly more conservative batch size to start, can be increased later.
+
     batch_size=48,
     eval_batch_size=24,
-    
     num_loader_workers=16,
     num_eval_loader_workers=8,
-    
     mixed_precision=True,
     epochs=2000,
     run_eval=True,
@@ -67,36 +63,31 @@ config = VitsConfig(
     lr_disc=0.0002,
     lr_scheduler_gen="ExponentialLR",
     lr_scheduler_disc="ExponentialLR",
-    
-    # FIX 2: Use a more robust text cleaner.
     use_phonemes=False,
     text_cleaner="multilingual_cleaners",
-    
     use_speaker_embedding=False,
-    
     compute_f0=True,
     compute_energy=True,
-    
-    # Pass the auto-generated characters config to the model
-    characters = CharactersConfig(
-        characters="абвгдежзийклмнопрстуфхцчшщъыьэюяёүө ",
-        punctuations="!\"'(),-.:;?[]{}–—"        
-    ),
-    
-    test_sentences=[
-        "Сайн байна уу?",
-        "Та хэрхэн байна?",
-        "Би сайн байна.",
-        "Та юу хийж байна вэ?",
-        "Бид хамтдаа суралцаж байна.",
-    ],
 )
 
-# --- INITIALIZATION ---
+# --- CHARACTERS: auto-infer to match cleaner output ---
+# This ensures tokenizer and embedding vocab align exactly
+config.characters = CharactersConfig.init_from_config(config)
 
+# --- TEST SENTENCES ---
+config.test_sentences = [
+    "Сайн байна уу?",
+    "Та хэрхэн байна?",
+    "Би сайн байна.",
+    "Та юу хийж байна вэ?",
+    "Бид хамтдаа суралцаж байна.",
+]
+
+# --- INITIALIZATION ---
 ap = AudioProcessor.init_from_config(config)
 tokenizer, config = TTSTokenizer.init_from_config(config)
 
+# --- LOAD DATA ---
 train_samples, eval_samples = load_tts_samples(
     [dataset_config],
     eval_split=True,
@@ -105,17 +96,28 @@ train_samples, eval_samples = load_tts_samples(
     formatter=mbspeech,
 )
 
-# ===================================================================
-# FIX 3: Reinstate SpeakerManager for robust speaker handling.
-# This correctly sets config.num_speakers from your data.
-# ===================================================================
+# --- SPEAKER HANDLING ---
 speaker_manager = SpeakerManager()
-speaker_manager.set_ids_from_data(train_samples + eval_samples, parse_key="speaker_name")
+speaker_manager.set_ids_from_data(
+    train_samples + eval_samples,
+    parse_key="speaker_name"
+)
 config.num_speakers = speaker_manager.num_speakers
 
+# --- MODEL ---
+# Sanity check: ensure tokenizer indices fit embedding
+sample_ids = tokenizer.text_to_sequence(
+    config.test_sentences[0], config.text_cleaner
+)
+max_id = max(sample_ids)
+print(f"Max token ID from tokenizer: {max_id}")
 
 model = Vits(config, ap, tokenizer, speaker_manager)
+print(f"Embedding size: {model.text_encoder.emb.num_embeddings}")
+assert max_id < model.text_encoder.emb.num_embeddings, \
+    "Tokenizer produced ID outside embedding range!"
 
+# --- TRAINER & RUN ---
 trainer = Trainer(
     args=TrainerArgs(),
     config=config,
@@ -125,6 +127,4 @@ trainer = Trainer(
     eval_samples=eval_samples,
 )
 
-# --- TRAINING ---
 trainer.fit()
-
