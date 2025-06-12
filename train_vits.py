@@ -47,9 +47,8 @@ audio_config = VitsAudioConfig(
 # preventing the "out-of-bounds" CUDA error.
 # ===================================================================
 all_samples, _ = load_tts_samples(dataset_config, eval_split=False, formatter=mbspeech)
-characters = TTSTokenizer.get_characters_from_data(all_samples)
-print(" > All characters found in dataset:", "".join(characters.characters))
-print(" > All punctuations found in dataset:", "".join(characters.punctuations))
+characters = TTSTokenizer.characters
+print(" > All characters found in dataset:", "".join(characters))
 
 
 config = VitsConfig(
