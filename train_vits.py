@@ -66,8 +66,6 @@ config = VitsConfig(
     
     compute_f0=True,
     compute_energy=True,
-    f0_cache_path=os.path.join(OUTPUT_PATH, "f0_cache"),
-    energy_cache_path=os.path.join(OUTPUT_PATH, "energy_cache"),
     
     characters=CharactersConfig(
         characters="абвгдеёжзийклмноөпрстуүфхцчшщъыьэюя",
