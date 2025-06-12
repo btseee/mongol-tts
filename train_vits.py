@@ -79,7 +79,7 @@ config = VitsConfig(
     
     # Pass the auto-generated characters config to the model
     characters = CharactersConfig(
-        characters="абвгдежзийклмнопрстуфхцчшщъыьэюяёүө",
+        characters="абвгдежзийклмнопрстуфхцчшщъыьэюяёүө ",
         punctuations="!\"'(),-.:;?[]{}–—"        
     ),
     
