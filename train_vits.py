@@ -4,7 +4,7 @@ import torch
 from trainer import Trainer, TrainerArgs
 
 from TTS.tts.configs.vits_config import VitsConfig
-from TTS.tts.configs.shared_configs import BaseDatasetConfig
+from TTS.tts.configs.shared_configs import BaseDatasetConfig, CharactersConfig
 from TTS.tts.datasets import load_tts_samples
 from TTS.tts.models.vits import Vits, VitsAudioConfig
 from TTS.tts.utils.text.tokenizer import TTSTokenizer
@@ -40,16 +40,6 @@ audio_config = VitsAudioConfig(
     mel_fmin=0.0,
     mel_fmax=None
 )
-
-# ===================================================================
-# FIX 1: Automatically generate the CharactersConfig from the dataset
-# This scans your metadata.csv to find all unique characters,
-# preventing the "out-of-bounds" CUDA error.
-# ===================================================================
-all_samples, _ = load_tts_samples(dataset_config, eval_split=False, formatter=mbspeech)
-characters = TTSTokenizer.characters
-print(" > All characters found in dataset:", "".join(characters))
-
 
 config = VitsConfig(
     audio=audio_config,
@@ -88,7 +78,12 @@ config = VitsConfig(
     compute_energy=True,
     
     # Pass the auto-generated characters config to the model
-    characters=characters,
+    characters = CharactersConfig(
+        characters="абвгдежзийклмнопрстуфхцчшъыьэюяёүө",
+        punctuation="!\"'(),-.:;?[]{}–—",
+        extra_punctuation="",
+        language="mn"
+    ),
     
     test_sentences=[
         "Сайн байна уу?",
