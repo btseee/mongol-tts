@@ -27,7 +27,7 @@ dataset_config = BaseDatasetConfig(
 )
 
 audio_config = VitsAudioConfig(
-    sample_rate=22050,
+    sample_rate=16000,
     hop_length=256,
     win_length=1024,
     num_mels=80,
@@ -39,7 +39,7 @@ config = VitsConfig(
     audio=audio_config,
     datasets=[dataset_config],
     output_path=OUTPUT_PATH,
-    run_name="vits_mn_run_optimized_v1",
+    run_name="vits_mn_run",
     project_name="vits_mn",
     batch_size=32,
     eval_batch_size=16,
@@ -76,11 +76,11 @@ config = VitsConfig(
         punctuations="!\"'(),-.:;?[]{}–—"
     ),
     test_sentences=[
-        "Сайн байна уу?",
-        "Та хэрхэн байна?",
-        "Би сайн байна.",
-        "Та юу хийж байна вэ?",
-        "Бид хамтдаа суралцаж байна.",
+        "дөрөв дэх мөрөн нь евфрат аж",
+        "эзэн бурхан хүн ганцаараа байх нь сайн биш",
+        "би түүнд тохирох туслагчийг буй болгоё гэжээ",
+        "өвдөж зовж чи үр хүүхдээ төрүүлнэ",
+        "эр нөхрөө чи эрмэлзэнэ эр чинь чамайг эзэгнэнэ гэв",
     ],
 )
 
