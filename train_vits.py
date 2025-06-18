@@ -72,8 +72,8 @@ config = VitsConfig(
         eos="<EOS>",
         bos="<BOS>",
         blank="<BLNK>",
-        characters="абвгдежзийклмнопрстуфхцчшщъыьэюяёүө ",
-        punctuations="!\"'(),-.:;?[]{}–—"
+        characters="абвгдежзийклмнопрстуфхцчшщъыьэюяёүө",
+        punctuations="!\"'(),-.:;?[]{}"
     ),
     test_sentences=[
         "дөрөв дэх мөрөн нь евфрат аж",

@@ -189,6 +189,4 @@ cython_debug/
 
 # Cursor cache
 dataset/
-output/cache/
-output/fastspeech2_mn_run/
-output/hifigan_mn_run/
+output/vits*
