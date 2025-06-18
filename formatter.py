@@ -10,7 +10,7 @@ def formatter(root_path, meta_file, **kwargs):
         for line in f:
             cols = line.strip().split("|")
             wav_file = os.path.join(root_path, "wavs", f"{cols[0]}.wav")
-            text = cols[1].strip()
+            text = cols[2].strip()
             items.append({
                 "text": text,
                 "audio_file": wav_file,

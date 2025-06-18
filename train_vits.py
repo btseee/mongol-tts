@@ -68,8 +68,8 @@ config = VitsConfig(
     compute_energy=True,
     characters = CharactersConfig(
         characters_class="TTS.tts.models.vits.VitsCharacters",
-        characters="абвгдежзийклмнопрстуфхцчшщъыьэюяёүө",
-        punctuations="!\"'(),-.:;?[]{}"
+        characters="абвгдеёжзийклмнопрстуфхцчшъыьэюяөү",
+        punctuations="-"
     ),
     test_sentences=[
         "дөрөв дэх мөрөн нь евфрат аж",
