@@ -68,10 +68,6 @@ config = VitsConfig(
     compute_energy=True,
     characters = CharactersConfig(
         characters_class="TTS.tts.models.vits.VitsCharacters",
-        pad="<PAD>",
-        eos="<EOS>",
-        bos="<BOS>",
-        blank="<BLNK>",
         characters="абвгдежзийклмнопрстуфхцчшщъыьэюяёүө",
         punctuations="!\"'(),-.:;?[]{}"
     ),
